@@ -43,6 +43,8 @@ void BasicMCAnalysis::initialize()
   histNStepsPerVolPerEvent = getHistogram<TH1D>("nStepsPerVolPerEvent", 1, 0., 1.);
   // relative number of steps per volume averaged over number of events
   histRelNStepsPerVolPerEvent = getHistogram<TH1D>("relNStepsPerVolPerEvent", 1, 0., 1.);
+  // number of steps done per module (unormalized)
+  histNStepsPerMod = getHistogram<TH1D>("nStepPerMod", 1, 0., 1.);
   // number of steps made by particles of certain PDG ID averaged over number of events
   histNStepsPerPDGPerEvent = getHistogram<TH1D>("nStepsPerPDGPerEvent", 1, 0., 1.);
   // relative number of steps made by particles of certain PDG ID averaged over number of events
@@ -89,6 +91,9 @@ void BasicMCAnalysis::analyze(const std::vector<StepInfo>* const steps, const st
   histNEvents->Fill(0.5);
   // to store the volume name
   std::string volName = "";
+  // to store the module name
+  std::string modName = "";
+
   // loop over magnetic field calls
   for (const auto& call : *magCalls) {
     if (call.stepid < 0) {
@@ -125,8 +130,13 @@ void BasicMCAnalysis::analyze(const std::vector<StepInfo>* const steps, const st
     // prepare for PDG ids and volume names
     mAnalysisManager->getLookupPDG(step.trackID, pdgId);
     mAnalysisManager->getLookupVolName(step.volId, volName);
+    mAnalysisManager->getLookupModName(step.volId, modName);
+
     // first increment the total number of steps over all events
     nSteps++;
+
+    // record number of steps per module
+    histNStepsPerMod->Fill(modName.c_str(), 1.);
 
     // avoid double counting of tracks in an event, so check if track ID is already registered
     if (std::find(tracks.begin(), tracks.end(), step.trackID) == tracks.end() && step.trackID > -1) {

@@ -87,6 +87,8 @@ class BasicMCAnalysis : public MCAnalysis
   TH1D* histNStepsPerEvent;
   // number of steps per volume averaged over number of events
   TH1D* histNStepsPerVolPerEvent;
+  // accumulated number of steps per module/region
+  TH1D* histNStepsPerMod;
   // relative number of steps per volume averaged over number of events
   TH1D* histRelNStepsPerVolPerEvent;
   // number of steps made by particles of certain PDG ID averaged over number of events
