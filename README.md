@@ -1,3 +1,5 @@
+Test CI
+
 # Important note
 
 This repository is extracting the MCStepLogger from https://github.com/AliceO2Group/AliceO2/tree/dev/Utilities/MCStepLogger making it ready to be an O2-independent tool (which is in principle already is). Only dependencies are `ROOT` and `Boost`.
