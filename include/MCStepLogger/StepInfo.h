@@ -77,7 +77,7 @@ struct StepLookups {
     }
     auto prev = tracktopdg[trackindex];
     if (prev != INVALIDPDG && prev != pdg) {
-      std::cerr << "Warning: Seeing more than one pdg for same trackID\n";
+      std::cerr << "Warning: Seeing more than one pdg (prev: " << prev << " curr: " << pdg << ") for same trackID " << trackindex << "\n";
     }
     tracktopdg[trackindex] = pdg;
   }

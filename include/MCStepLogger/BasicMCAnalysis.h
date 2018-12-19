@@ -8,9 +8,9 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/* This class analyses properties of a simulation run which are directly accessible in 
- * the ROOT files created with the MCStepLogger. No complex parameters are derived from 
- * what is available and it therefore provides a first immediate conclusion on the 
+/* This class analyses properties of a simulation run which are directly accessible in
+ * the ROOT files created with the MCStepLogger. No complex parameters are derived from
+ * what is available and it therefore provides a first immediate conclusion on the
  * simulation in terms of:
  *
  * -> number of simulated events
@@ -35,12 +35,12 @@
  * -> number of calls to magnetic field
  * -> number of volumes traversed
  *
- * Note that all histograms are normalized to the number of simulated events in 
- * order to enable for an analysis comparison given 2 runs with different number 
+ * Note that all histograms are normalized to the number of simulated events in
+ * order to enable for an analysis comparison given 2 runs with different number
  * of events (of course, statistics need to be large enough to make sure the phase
- * space is sufficiently scanned in both analyses in order to draw reliable 
+ * space is sufficiently scanned in both analyses in order to draw reliable
  * conclusions from a comparison).
- * 
+ *
  * Nevertheless, this analysis can be used to compare simulations with benchmarked
  * events directly.
  */
@@ -109,6 +109,8 @@ class BasicMCAnalysis : public MCAnalysis
   TH1D* histStepSizesPerEvent;
   // steps in the r-z plane
   TH2D* histRZ;
+  // energy of a track at a step
+  TH1D* histStepsEnergyPerEvent;
   // total number of secondaries averaged over number of events
   TH1D* histNSecondariesPerEvent;
   // total number of secondaries per volume averaged over number of events

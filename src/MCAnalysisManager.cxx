@@ -10,8 +10,6 @@
 
 #include <iostream>
 
-#include "FairLogger.h"
-
 #include "MCStepLogger/MCAnalysisManager.h"
 #include "MCStepLogger/MCAnalysis.h"
 #include "MCStepLogger/MCAnalysisFileWrapper.h"
@@ -20,6 +18,11 @@
 ClassImp(o2::mcstepanalysis::MCAnalysisManager);
 
 using namespace o2::mcstepanalysis;
+
+/*void MCAnalysisManager::setHistogramPropertiesFile(const std::string& filepath)
+{
+  mHistogramPropertiesJSON = filepath;
+}*/
 
 void MCAnalysisManager::setInputFilepath(const std::string& filepath)
 {
@@ -31,7 +34,7 @@ void MCAnalysisManager::registerAnalysis(MCAnalysis* analysis)
   if (!mIsInitialized) {
     for (auto& a : mAnalyses) {
       if (a->name().compare(analysis->name()) == 0) {
-        LOG(ERROR) << "Analysis " << analysis->name() << " already present...skip";
+        std::cerr << "ERROR: Analysis " << analysis->name() << " already present...skip" << std::endl;
         mAnalysesToDump.push_back(analysis);
       }
     }
@@ -51,14 +54,14 @@ bool MCAnalysisManager::checkReadiness() const
   if (errorMessage.empty()) {
     return true;
   }
-  LOG(ERROR) << errorMessage;
+  std::cerr << "ERROR: " << errorMessage << std::endl;
   return false;
 }
 
 void MCAnalysisManager::run(int nEvents)
 {
   if (!checkReadiness()) {
-    LOG(ERROR) << "MCAnalysisManager not ready to run, errors occured";
+    std::cerr << "FATAL: MCAnalysisManager not ready to run, errors occured\n";
     exit(1);
   }
   initialize();
@@ -69,7 +72,7 @@ void MCAnalysisManager::run(int nEvents)
 bool MCAnalysisManager::dryrun()
 {
   if (mInputFilepath.empty()) {
-    LOG(FATAL) << "Input file required...\n";
+    std::cerr << "FATAL: Input file required...\n";
     exit(1);
   }
   return analyze(-1, true);
@@ -78,7 +81,7 @@ bool MCAnalysisManager::dryrun()
 void MCAnalysisManager::initialize()
 {
   if (mIsInitialized) {
-    LOG(ERROR) << "Already initialized ==> not initialized again...";
+    std::cerr << "Already initialized ==> not initialized again...\n";
     return;
   }
   // get rid of all analyses not needed anymore
@@ -102,7 +105,7 @@ void MCAnalysisManager::initialize()
 bool MCAnalysisManager::analyze(int nEvents, bool isDryrun)
 {
   if (!mIsInitialized && !isDryrun) {
-    LOG(ERROR) << "Not yet initialized ==> nothing to analyze...";
+    std::cerr << "Not yet initialized ==> nothing to analyze...\n";
     return false;
   }
   // taking only the first entry is a hack! \todo change this by enabling also for TChains
@@ -114,12 +117,12 @@ bool MCAnalysisManager::analyze(int nEvents, bool isDryrun)
     if (isDryrun) {
       return false;
     }
-    LOG(FATAL) << "Tree " << mAnalysisTreename << " could not be found in file " << mInputFilepath;
+    std::cerr << "FATAL: Tree " << mAnalysisTreename << " could not be found in file " << mInputFilepath << std::endl;
     exit(1);
   }
   // print warning if desired number of entries is bigger than number of present entries
   if (nEvents > rootutil.nEntries()) {
-    LOG(WARNING) << "You want to process " << nEvents << ", however only " << rootutil.nEntries() << " are present.";
+    std::cerr << "WARNING: You want to process " << nEvents << ", however only " << rootutil.nEntries() << " are present.\n";
   }
 
   // prepare variables and connect to branches
@@ -129,7 +132,7 @@ bool MCAnalysisManager::analyze(int nEvents, bool isDryrun)
     if (isDryrun) {
       return false;
     }
-    LOG(FATAL) << "Cannot find required branches in TTree " << mAnalysisTreename;
+    std::cerr << "FATAL: Cannot find required branches in TTree " << mAnalysisTreename << std::endl;
     exit(1);
   }
   // process tree and analyze
@@ -143,7 +146,7 @@ bool MCAnalysisManager::analyze(int nEvents, bool isDryrun)
       if (isDryrun) {
         return false;
       }
-      LOG(FATAL) << "Obtained nullptrs while processing TTree " << mAnalysisTreename;
+      std::cerr << "FATAL: Obtained nullptrs while processing TTree " << mAnalysisTreename << std::endl;
       exit(1);
     }
     // ... if so, next event
@@ -164,7 +167,7 @@ bool MCAnalysisManager::analyze(int nEvents, bool isDryrun)
   }
   rootutil.close();
   if (!isDryrun) {
-    LOG(INFO) << "Analysis run on file " << mInputFilepath << " done.";
+    std::cerr << "INFO: Analysis run on file " << mInputFilepath << " done.\n";
     mIsAnalyzed = true;
   } else {
     mCurrentEventNumber = 0;
@@ -176,7 +179,7 @@ bool MCAnalysisManager::analyze(int nEvents, bool isDryrun)
 void MCAnalysisManager::finalize()
 {
   if (!mIsAnalyzed) {
-    LOG(ERROR) << "Not yet analyzed ==> nothing to finalize...";
+    std::cerr << "ERROR: Not yet analyzed ==> nothing to finalize...\n";
     return;
   }
   for (auto& a : mAnalyses) {
@@ -193,7 +196,7 @@ void MCAnalysisManager::write(const std::string& directory) const
 
 void MCAnalysisManager::terminate()
 {
-  LOG(DEBUG) << "Terminate MCAnalysisManager...";
+  //std::cerr << "Terminate MCAnalysisManager...";
   mIsInitialized = false;
   mIsAnalyzed = false;
   mCurrentEventNumber = 0;
@@ -219,9 +222,9 @@ void MCAnalysisManager::setStepLoggerTreename(const std::string& treename)
 
 void MCAnalysisManager::printAnalyses() const
 {
-  LOG(INFO) << "Analyses registered with MCAnalysisManager are:";
+  std::cerr << "INFO: Analyses registered with MCAnalysisManager are:\n";
   for (auto& a : mAnalyses) {
-    std::cout << "\t" << a->name() << "\n";
+    std::cerr << "\t" << a->name() << "\n";
   }
 }
 

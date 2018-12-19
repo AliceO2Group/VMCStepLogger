@@ -1,3 +1,22 @@
+# Important note
+
+This repository is extracting the MCStepLogger from https://github.com/AliceO2Group/AliceO2/tree/dev/Utilities/MCStepLogger making it ready to be an O2-independent tool (which is in principle already is). Only dependencies are `ROOT` and `Boost`.
+
+## Build and install
+
+`cmake` (version >= 3.11.0) is used to build this project. Please install [ROOT](https://github.com/root-project/root) (tested with version 6.12.06) and [Boost](https://www.boost.org/) (tested with version 1.59.0). After that just set the environment variables `ROOTSYS` and `BOOST_ROOT` to the root directories of the `ROOT` and `Boost` installations, respectively. Finally, do
+```bash
+mkdir -p $BUILD_DIR $INSTALL_DIR; cd $BUILD_DIR
+cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR $MCSTEPLOGGER_SOURCE_DIR
+make install
+```
+That leaves you with
+* libraries at `$INSTALL_DIR/lib`
+* headers at`$INSTALL_DIR/include`
+* the executable `$INSTALL_DIR/bin/mcStepAnalysis` (usage explained [below](#mcsteploganalysis))
+
+Note that some of the instructions below especially apply to the usage together with the ALICE O2 software framework.
+
 ## MCStepLogger
 
 Detailed debug information about stepping can be directed to standard output using the `LD_PRELOAD` env variable, which "injects" a
@@ -48,7 +67,7 @@ cave TheCavern
 > MCSTEPLOG_VOLMAPFILE=path_to_/volmapfile.dat MCSTEPLOG_TTREE=1 LD_PRELOAD=path_to/libMCStepLogger.so o2sim ..
 
 > root -b MCStepLoggerOutput.root
-root[0] StepLoggerTree->Draw("Lookups.volidtomodule.data()");
+root[0] StepLoggerTree->Draw( "Lookups.volidtomodule.data()");
 ```
 
 Note also the existence of the `LD_DEBUG` variable which can be used to see in details what libraries are loaded (and much more if needed...).
@@ -132,8 +151,10 @@ Histograms which should be written to disk in an analysis are managed by `MCAnal
 
 ### Comparing analysis values to reference reference values
 
+NOTE: This is currently not available but will be soon.
+
 For the `BasicMCAnalysis` there is a small test suite to compare the obtained values from a simulation run to reference values contained in a JSON file. So far, that is a prototype only caring about the total number of steps and total number of tracks obtained in the simulation. The `JSON` file looks as follows
-```json
+```
 {
   "analysisName": "BasicMCAnalysis",
   "nSteps": [absoluteNumberOfSteps, relativeTolerance],

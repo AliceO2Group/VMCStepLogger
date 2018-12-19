@@ -48,11 +48,11 @@ void BasicMCAnalysis::initialize()
   // relative number of steps made by particles of certain PDG ID averaged over number of events
   histRelNStepsPerPDGPerEvent = getHistogram<TH1D>("relNStepsPerPDGPerEvent", 1, 0., 1.);
   // histogram of x coordinates of steps averaged over number of events
-  histStepsXPerEvent = getHistogram<TH1D>("stepsXPerEvent", 100, -2100., 2100.);
+  histStepsXPerEvent = getHistogram<TH1D>("stepsXPerEvent", 100, -300., 300.);
   // histogram of y coordinates of steps averaged over number of events
-  histStepsYPerEvent = getHistogram<TH1D>("stepsYPerEvent", 100, -2100., 2100.);
+  histStepsYPerEvent = getHistogram<TH1D>("stepsYPerEvent", 50, -30., 30.);
   // histogram of z coordinates of steps averaged over number of events
-  histStepsZPerEvent = getHistogram<TH1D>("stepsZPerEvent", 100, -3100., 3100.);
+  histStepsZPerEvent = getHistogram<TH1D>("stepsZPerEvent", 50, -30., 30.);
   // overall average step size per event averaged over number of events
   histMeanStepSizePerEvent = getHistogram<TH1D>("meanStepSizePerEvent", 1, 0., 1.);
   // average step size per event per volume averaged over number of events
@@ -63,6 +63,8 @@ void BasicMCAnalysis::initialize()
   histStepSizesPerEvent = getHistogram<TH1D>("stepSizesPerEvent", 50, 0., 250.);
   // steps in the r-z plane
   histRZ = getHistogram<TH2D>("RZOccupancy", 200, -3000., 3000., 200, 0., 3000.);
+  // energy of a track at a step
+  histStepsEnergyPerEvent = getHistogram<TH1D>("stepsEnergyPerEvent", 50, 0., 12.);
   // total number of secondaries averaged over number of events
   histNSecondariesPerEvent = getHistogram<TH1D>("nSecondariesPerEvent", 1, 0., 1.);
   // number of secondaries per volume averaged over number of events
@@ -143,6 +145,7 @@ void BasicMCAnalysis::analyze(const std::vector<StepInfo>* const steps, const st
     histStepsYPerEvent->Fill(step.y);
     histStepsZPerEvent->Fill(step.z);
     histRZ->Fill(step.z, std::sqrt(step.x * step.x + step.y * step.y));
+    histStepsEnergyPerEvent->Fill(step.E);
     // extract the step length
     float stepLength = 0.;
     // be save and check whether there are e.g. NaNs (happened!)
@@ -237,6 +240,7 @@ void BasicMCAnalysis::finalize()
   histStepsXPerEvent->Scale(1. / histNEvents->GetEntries());
   histStepsYPerEvent->Scale(1. / histNEvents->GetEntries());
   histStepsZPerEvent->Scale(1. / histNEvents->GetEntries());
+  histStepsEnergyPerEvent->Scale(1. / histNEvents->GetEntries());
   histStepSizesPerEvent->Scale(1. / histNEvents->GetEntries());
   histMeanStepSizePerEvent->Scale(1. / histNEvents->GetEntries());
   // normalize per volume to number of events where a certain volume was present

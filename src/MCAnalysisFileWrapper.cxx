@@ -12,8 +12,6 @@
 
 #include "TSystem.h" // to check for and create directories
 
-#include "FairLogger.h"
-
 #include "MCStepLogger/MCAnalysisFileWrapper.h"
 #include "MCStepLogger/ROOTIOUtilities.h"
 
@@ -32,7 +30,7 @@ bool MCAnalysisFileWrapper::isSane() const
   bool sane = true;
   // so far only check number of histograms vs. expected number of histograms
   if (mAnalysisMetaInfo.nHistograms != mHistograms.size()) {
-    LOG(WARNING) << "Histograms are corrupted: found " << mHistograms.size() << " but " << mAnalysisMetaInfo.nHistograms << " expected.";
+    std::cerr << "ERROR: Histograms are corrupted: found " << mHistograms.size() << " but " << mAnalysisMetaInfo.nHistograms << " expected\n";
     sane = false;
   }
   return sane;
@@ -73,17 +71,17 @@ bool MCAnalysisFileWrapper::read(const std::string& filepath)
 void MCAnalysisFileWrapper::write(const std::string& filedir) const
 {
   if (!isSane()) {
-    LOG(ERROR) << "Analysis file cannot be written, see above.";
+    std::cerr << "ERROR: Analysis file cannot be written, see above.\n";
     return;
   }
   const std::string outputDir = filedir + "/" + mAnalysisMetaInfo.analysisName;
   if (!createDirectory(outputDir)) {
-    LOG(ERROR) << "Directory " << outputDir << " could not be created for analysis " << mAnalysisMetaInfo.analysisName << ". Skip...\n";
+    std::cerr << "ERROR: Directory " << outputDir << " could not be created for analysis " << mAnalysisMetaInfo.analysisName << ". Skip...\n";
     return;
   }
   ROOTIOUtilities rootutil(outputDir + "/Analysis.root", ETFileMode::kRECREATE);
 
-  LOG(INFO) << "Save histograms of analysis " << mAnalysisMetaInfo.analysisName << "\n\tat " << filedir << "\n";
+  std::cerr << "INFO: Save histograms of analysis " << mAnalysisMetaInfo.analysisName << " at " << filedir << std::endl;
   rootutil.writeObject(&mAnalysisMetaInfo, defaults::mcAnalysisMetaInfoName);
   rootutil.changeToTDirectory(defaults::mcAnalysisObjectsDirName);
   for (const auto& h : mHistograms) {
@@ -122,7 +120,7 @@ MCAnalysisMetaInfo& MCAnalysisFileWrapper::getAnalysisMetaInfo()
 
 void MCAnalysisFileWrapper::printAnalysisMetaInfo() const
 {
-  LOG(INFO) << "Meta info of analysis file";
+  std::cerr << "INFO: Meta info of analysis file\n";
   mAnalysisMetaInfo.print();
 }
 
@@ -131,9 +129,9 @@ void MCAnalysisFileWrapper::printHistogramInfo(const std::string& option) const
   if (mHistograms.empty()) {
     return;
   }
-  LOG(INFO) << "Histograms of analysis file";
+  std::cerr << "INFO: Histograms of analysis file\n";
   for (auto& h : mHistograms) {
-    std::cout << "Histogram of class " << h->ClassName() << std::endl;
+    std::cerr << "Histogram of class " << h->ClassName() << std::endl;
     h->Print(option.c_str());
   }
 }

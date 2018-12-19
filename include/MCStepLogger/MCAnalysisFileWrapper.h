@@ -13,9 +13,7 @@
 
 #include <string>
 #include <vector>
-#include <memory> // std::unique_ptr
-
-#include "FairLogger.h"
+#include <iostream>
 
 #include "MCStepLogger/MetaInfo.h"
 
@@ -131,12 +129,12 @@ class MCAnalysisFileWrapper
       return nullptr;
     }
     if (!histogram) {
-      LOG(FATAL) << "Not casting nullptr.";
+      std::cerr << "FATAL: Not casting nullptr.\n";
       exit(1);
     }
     T* histoCasted = dynamic_cast<T*>(histogram);
     if (!histoCasted) {
-      LOG(FATAL) << histogram->GetName() << " cannot be casted to " << typeid(T).name();
+      std::cerr << "FATAL: " << histogram->GetName() << " cannot be casted to " << typeid(T).name() << std::endl;
       exit(1);
     }
     return histoCasted;

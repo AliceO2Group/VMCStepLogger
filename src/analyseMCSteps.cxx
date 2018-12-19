@@ -19,8 +19,6 @@
 #include "TInterpreter.h"
 #include "TSystemDirectory.h"
 
-#include "FairLogger.h"
-
 #include "MCStepLogger/MCAnalysisManager.h"
 #include "MCStepLogger/MCAnalysisFileWrapper.h"
 #include "MCStepLogger/BasicMCAnalysis.h"
@@ -50,7 +48,7 @@ void registerAnalyses(const std::string& analysisDir)
     while ((file = (TSystemFile*)next())) {
       if (!file->IsDirectory()) {
         const std::string& filepath = analysisDir + "/" + file->GetName();
-        LOG(DEBUG) << "Try to load analysis from " << filepath << "\n";
+        std::cerr << "Try to load analysis from " << filepath << std::endl;
         gROOT->LoadMacro(filepath.c_str());
         gInterpreter->ProcessLine("declareAnalysis()");
       }
@@ -126,7 +124,7 @@ int checkFile(const bpo::variables_map& vm, std::string& errorMessage)
   if (!errorMessage.empty()) {
     return 1;
   }
-  LOG(INFO) << "Check type and sanity of the input file " << vm["root-file"].as<std::string>();
+  std::cerr << "INFO: Check type and sanity of the input file " << vm["root-file"].as<std::string>() << std::endl;
   MCAnalysisFileWrapper fileWrapper;
   if (fileWrapper.read(vm["root-file"].as<std::string>())) {
     fileWrapper.printAnalysisMetaInfo();
@@ -138,7 +136,7 @@ int checkFile(const bpo::variables_map& vm, std::string& errorMessage)
   if (anamgr.dryrun()) {
     return 0;
   }
-  LOG(INFO) << "This ROOT file is neither an MCStepLogger nor an MCAnalysis file.";
+  std::cerr << "ERROR: This ROOT file is neither an MCStepLogger nor an MCAnalysis file.\n";
   return 1;
 }
 
@@ -174,7 +172,7 @@ int main(int argc, char* argv[])
   // and return
   if (!vm.count("command") || vm.empty()) {
     if (!vm.count("help")) {
-      LOG(FATAL) << "Need command to execute.";
+      std::cerr << "ERROR: Need command to execute.";
     }
     // Print global help message in any case...
     helpMessage(desc);
@@ -185,7 +183,7 @@ int main(int argc, char* argv[])
   // Extract command
   const std::string& cmd = vm["command"].as<std::string>();
   if (std::find(availableCommands.begin(), availableCommands.end(), cmd) == availableCommands.end()) {
-    LOG(ERROR) << "Command \"" << cmd << "\" unknown.";
+    std::cerr << "ERROR: Command \"" << cmd << "\" unknown.\n";
     helpMessage(desc);
     return 1;
   }
@@ -220,7 +218,7 @@ int main(int argc, char* argv[])
   }
   // check return value
   if (returnValue > 0) {
-    LOG(ERROR) << "Errors occured:";
+    std::cerr << "ERRORS occured:";
     std::cerr << errorMessage << "\n";
   }
   if (returnValue > 0 || vm.count("help")) {

@@ -64,6 +64,8 @@ class MCAnalysisManager
   //
   // setting
   //
+  /// set the file path to overwrite histogram properties used in MCAnalysis
+  //void setHistogramPropertiesFile(const std:;string& filepath);
   /// set the path to the MCStepLogger input file path
   void setInputFilepath(const std::string& filepath);
   // register analysis to manager, done implicitly in the base Analysis class during construction
@@ -135,6 +137,8 @@ class MCAnalysisManager
   o2::StepLookups* mCurrentLookups = nullptr;
   /// analysis files histograms are written to
   std::vector<MCAnalysisFileWrapper> mAnalysisFiles;
+  /// A JSON file to overwrite histogram properties used in MCAnalysis objects
+  //std::string mHistogramPropertiesJSON = "";
 
   ClassDefNV(MCAnalysisManager, 1);
 };

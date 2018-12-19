@@ -2,80 +2,105 @@
 # @brief  cmake setup for module Utilities/MCStepLogger
 
 set(MODULE_NAME "MCStepLogger")
-set(MODULE_BUCKET_NAME mcsteplogger_bucket)
-O2_SETUP(NAME ${MODULE_NAME})
 
+# Minimum version of CMake
+CMAKE_MINIMUM_REQUIRED(VERSION 3.11.0 FATAL_ERROR)
+
+project(${MODULE_NAME})
+
+
+# Install directories
+SET(INSTALL_BIN_DIR ${CMAKE_INSTALL_PREFIX}/bin)
+SET(INSTALL_INC_DIR ${CMAKE_INSTALL_PREFIX}/include/${MODULE_NAME})
+SET(INSTALL_LIB_DIR ${CMAKE_INSTALL_PREFIX}/lib)
+
+# Source directories
+SET(IMP_SRC_DIR ${CMAKE_SOURCE_DIR}/src)
+SET(INC_SRC_DIR ${CMAKE_SOURCE_DIR}/include/${MODULE_NAME})
+
+# Library name
+SET(LIBRARY_NAME ${MODULE_NAME})
+# Executable name
+SET(EXECUTABLE_NAME mcStepAnalysis)
+
+
+
+# Required source files to build the library.
 set(SRCS
-    src/MCStepInterceptor.cxx
-    src/MCStepLoggerImpl.cxx
-    src/StepInfo.cxx
-    src/MCAnalysis.cxx
-    src/BasicMCAnalysis.cxx
-    src/MCAnalysisManager.cxx
-    src/MCAnalysisFileWrapper.cxx
-    src/MCAnalysisUtilities.cxx
-    src/ROOTIOUtilities.cxx
+    ${IMP_SRC_DIR}/MCStepInterceptor.cxx
+    ${IMP_SRC_DIR}/MCStepLoggerImpl.cxx
+    ${IMP_SRC_DIR}/StepInfo.cxx
+    ${IMP_SRC_DIR}/MCAnalysis.cxx
+    ${IMP_SRC_DIR}/BasicMCAnalysis.cxx
+    ${IMP_SRC_DIR}/MCAnalysisManager.cxx
+    ${IMP_SRC_DIR}/MCAnalysisFileWrapper.cxx
+    ${IMP_SRC_DIR}/MCAnalysisUtilities.cxx
+    ${IMP_SRC_DIR}/ROOTIOUtilities.cxx
    )
 
+# Requried headers to build the library.
 set(HEADERS
-   include/${MODULE_NAME}/StepInfo.h
-   include/${MODULE_NAME}/MetaInfo.h
-   include/${MODULE_NAME}/MCAnalysis.h
-   include/${MODULE_NAME}/BasicMCAnalysis.h
-   include/${MODULE_NAME}/MCAnalysisManager.h
-   include/${MODULE_NAME}/MCAnalysisFileWrapper.h
-   include/${MODULE_NAME}/MCAnalysisUtilities.h
-   include/${MODULE_NAME}/ROOTIOUtilities.h
+   ${INC_SRC_DIR}/StepInfo.h
+   ${INC_SRC_DIR}/MetaInfo.h
+   ${INC_SRC_DIR}/MCAnalysis.h
+   ${INC_SRC_DIR}/BasicMCAnalysis.h
+   ${INC_SRC_DIR}/MCAnalysisManager.h
+   ${INC_SRC_DIR}/MCAnalysisFileWrapper.h
+   ${INC_SRC_DIR}/MCAnalysisUtilities.h
+   ${INC_SRC_DIR}/ROOTIOUtilities.h
   )
+include_directories(include/)
 
-set(LIBRARY_NAME ${MODULE_NAME})
-set(BUCKET_NAME ${MODULE_BUCKET_NAME})
-set(LINKDEF src/MCStepLoggerLinkDef.h)
+# Required source for the executable
+set(EXE_SRCS
+    ${IMP_SRC_DIR}/analyseMCSteps.cxx
+   )
 
+########
+# ROOT #
+########
+# Find ROOT and get useful functions from ROOT_USE_FILE,
+# e.g. ROOT_GENERATE_DICTIONARY
+list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
+find_package(ROOT REQUIRED)
+include(${ROOT_USE_FILE})
+# Find ROOT headers
+include_directories(${ROOT_INCLUDE_DIRS})
 
-O2_GENERATE_LIBRARY()
+#########
+# Boost #
+#########
+#find_package(Boost COMPONENTS container thread system timer program_options random filesystem chrono exception regex serialization log log_setup unit_test_framework date_time signals iostreams REQUIRED)
+find_package(Boost COMPONENTS program_options chrono unit_test_framework REQUIRED)
+include_directories(${Boost_INCLUDE_DIR})
 
-O2_GENERATE_EXECUTABLE(
-  EXE_NAME mcStepAnalysis
-  SOURCES src/analyseMCSteps.cxx
-  MODULE_LIBRARY_NAME ${LIBRARY_NAME}
-  BUCKET_NAME ${BUCKET_NAME}
+# Generate ROOT dictionary
+SET(ROOT_DICT_LINKDEF_FILE ${IMP_SRC_DIR}/MCStepLoggerLinkDef.h)
+SET(ROOT_DICT_NAME "G__${MODULE_NAME}")
+
+ROOT_GENERATE_DICTIONARY(${ROOT_DICT_NAME} ${HEADERS} LINKDEF ${ROOT_DICT_LINKDEF_FILE})
+# Files produced by the dictionary generation
+SET(ROOT_DICT_LIB_FILES
+    "${PROJECT_BINARY_DIR}/lib${MODULE_NAME}_rdict.pcm"
+    "${PROJECT_BINARY_DIR}/lib${MODULE_NAME}.rootmap"
 )
 
-O2_GENERATE_EXECUTABLE(
-  EXE_NAME runTestBasicMCAnalysis
-  SOURCES src/basicMCAnalysisCI.cxx
-  MODULE_LIBRARY_NAME ${LIBRARY_NAME}
-  BUCKET_NAME ${BUCKET_NAME}
-)
+# Build a library from the sources specified above together with generated ROOT
+# dictionary
+add_library(${MODULE_NAME} SHARED ${SRCS} "${ROOT_DICT_NAME}.cxx" ${HEADERS})
 
-# check correct functioning of the logger and the MC analysis chain
-if (HAVESIMULATION)
-  add_test(NAME mcloggertest COMMAND ${CMAKE_BINARY_DIR}/bin/runTPC -n 1 -e TGeant3)
-  # tests if the logger was active
-  set_tests_properties(mcloggertest PROPERTIES PASS_REGULAR_EXPRESSION "VolName.*COUNT")
-  if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(PRELOAD "DYLD_INSERT_LIBRARIES")
-  else()
-    set(PRELOAD "LD_PRELOAD")
-  endif()
-    set_tests_properties(mcloggertest PROPERTIES ENVIRONMENT ${PRELOAD}=${CMAKE_BINARY_DIR}/lib/libMCStepLogger${CMAKE_SHARED_LIBRARY_SUFFIX})
-    set_property(TEST mcloggertest APPEND PROPERTY ENVIRONMENT VMCWORKDIR=${CMAKE_SOURCE_DIR})
+# Link together with ROOT libs
+target_link_libraries(${MODULE_NAME} -lCore -lHist -lGraf -lGpad -lTree -lVMC)
 
-  # check whether StepLogger output can be written to ROOT file
-  # fix output file name for logged data
-  set(STEPLOGGER_ROOTFILE "MCStepLoggerOutput_test.root")
-  add_test(NAME mcloggertest_tofile COMMAND ${CMAKE_BINARY_DIR}/bin/runTPC -n 1 -e TGeant3)
-  set_tests_properties(mcloggertest_tofile PROPERTIES ENVIRONMENT ${PRELOAD}=${CMAKE_BINARY_DIR}/lib/libMCStepLogger${CMAKE_SHARED_LIBRARY_SUFFIX})
-  # set environment accordingly
-  set_property(TEST mcloggertest_tofile APPEND PROPERTY ENVIRONMENT VMCWORKDIR=${CMAKE_SOURCE_DIR} MCSTEPLOG_TTREE=1 MCSTEPLOG_OUTFILE=${STEPLOGGER_ROOTFILE})
+# Add the executable to do analysis with the MCStepLogger output files
+add_executable(${EXECUTABLE_NAME} ${EXE_SRCS})
+target_link_libraries(${EXECUTABLE_NAME} ${MODULE_NAME} ${Boost_LIBRARIES})
 
-  # check for working analysis
-  # fix output file name for analysis
-  set(MCANALYSIS_ROOTFILE "BasicMCAnalysis.root")
-  add_test(NAME basicmcanalysis COMMAND ${CMAKE_BINARY_DIR}/bin/mcStepAnalysis analyze -f ${STEPLOGGER_ROOTFILE} -o ${MCANALYSIS_ROOTFILE} -l testLabel)
-  set_tests_properties(basicmcanalysis PROPERTIES DEPENDS mcloggertest_tofile)
-  # set environment accordingly
-  set_property(TEST basicmcanalysis APPEND PROPERTY ENVIRONMENT VMCWORKDIR=${CMAKE_SOURCE_DIR})
-
-endif()
+# Install headers
+install(FILES ${HEADERS} DESTINATION ${INSTALL_INC_DIR})
+# Install libraries
+install(TARGETS ${MODULE_NAME} DESTINATION ${INSTALL_LIB_DIR})
+# Install the ROOT dictionary files
+install(FILES ${ROOT_DICT_LIB_FILES} DESTINATION ${INSTALL_LIB_DIR})
+# Install executables
+install(TARGETS ${EXECUTABLE_NAME} DESTINATION ${INSTALL_BIN_DIR})
