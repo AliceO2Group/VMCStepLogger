@@ -60,6 +60,16 @@ class MCAnalysisFileWrapper
   {
     return *castHistogram<T>(findHistogram(name), false);
   }
+  /// get histogram at position
+  template <typename T = TH1>
+  T& getHistogram(int position)
+  {
+    if (position < 0 || position >= mHistograms.size()) {
+      std::cerr << "FATAL: Histogram at invalid position " << position << " requested.\n";
+      exit(1);
+    }
+    return *castHistogram<T>(mHistograms[position].get(), false);
+  }
   /// get a 1D histogram and directly register it to this this wrapper
   template <typename T>
   T& getHistogram(const std::string& name, int nBins, double lower, double upper)
@@ -110,6 +120,8 @@ class MCAnalysisFileWrapper
   //
   /// getting the meta info of the analysis run
   MCAnalysisMetaInfo& getAnalysisMetaInfo();
+  /// get number of histograms
+  int nHistograms() const;
   //
   // verbosity
   //
