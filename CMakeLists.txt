@@ -11,19 +11,19 @@ project(${MODULE_NAME})
 
 # Install directories
 SET(INSTALL_BIN_DIR ${CMAKE_INSTALL_PREFIX}/bin)
+SET(INSTALL_MACRO_DIR ${CMAKE_INSTALL_PREFIX}/macro)
 SET(INSTALL_INC_DIR ${CMAKE_INSTALL_PREFIX}/include/${MODULE_NAME})
 SET(INSTALL_LIB_DIR ${CMAKE_INSTALL_PREFIX}/lib)
 
 # Source directories
 SET(IMP_SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 SET(INC_SRC_DIR ${CMAKE_SOURCE_DIR}/include/${MODULE_NAME})
+SET(MACRO_SRC_DIR ${CMAKE_SOURCE_DIR}/macro)
 
 # Library name
 SET(LIBRARY_NAME ${MODULE_NAME})
 # Executable name
 SET(EXECUTABLE_NAME mcStepAnalysis)
-
-
 
 # Required source files to build the library.
 set(SRCS
@@ -55,6 +55,11 @@ include_directories(include/)
 set(EXE_SRCS
     ${IMP_SRC_DIR}/analyseMCSteps.cxx
    )
+
+# Macros to be copied
+set(MACROS
+   ${MACRO_SRC_DIR}/plotAnalysisHistograms.C
+  )
 
 ########
 # ROOT #
@@ -104,3 +109,5 @@ install(TARGETS ${MODULE_NAME} DESTINATION ${INSTALL_LIB_DIR})
 install(FILES ${ROOT_DICT_LIB_FILES} DESTINATION ${INSTALL_LIB_DIR})
 # Install executables
 install(TARGETS ${EXECUTABLE_NAME} DESTINATION ${INSTALL_BIN_DIR})
+# Install macros
+install(FILES ${MACROS} DESTINATION ${INSTALL_MACRO_DIR})

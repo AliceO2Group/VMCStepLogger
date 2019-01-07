@@ -112,10 +112,14 @@ bool MCAnalysisFileWrapper::createDirectory(const std::string& dir)
   return (gSystem->AccessPathName(dir.c_str()) == 0);
 }
 
-/// getting the meta info of the analysis run
 MCAnalysisMetaInfo& MCAnalysisFileWrapper::getAnalysisMetaInfo()
 {
   return mAnalysisMetaInfo;
+}
+
+int MCAnalysisFileWrapper::nHistograms() const
+{
+  return mHistograms.size();
 }
 
 void MCAnalysisFileWrapper::printAnalysisMetaInfo() const
