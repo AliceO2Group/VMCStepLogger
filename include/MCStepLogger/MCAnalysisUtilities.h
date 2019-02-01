@@ -25,7 +25,7 @@ namespace utilities
 {
 /// compressing a histogram with alphanumeric bins and sorting accordingly
 /// for sorting option see ROOT's TH1::LabelsOption
-void ompressHistogram(TH1* histo, const char* sortOption);
+void compressHistogram(TH1* histo, const char* sortOption = "");
 /// scale bin i by scaleVector[i-1]
 void scalePerBin(TH1* histo, const std::vector<float>& scaleVector);
 /// for histograms with alphanumeric labels scale bin with name "name" by scaleMap["name"]
