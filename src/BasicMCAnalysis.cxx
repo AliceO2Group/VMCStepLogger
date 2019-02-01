@@ -290,4 +290,18 @@ void BasicMCAnalysis::finalize()
   }
   histRelNStepsPerPDGPerEvent->Scale(1. / double(histNStepsPerEvent->GetMaximum()));
   histRelNStepsPerPDGPerEvent->SetEntries(histNSteps->GetEntries());
+
+  // Compress alphanumeric histograms and sort by decreasing number of entries
+  // (default)
+  utilities::compressHistogram(histNStepsPerVolPerEvent);
+  utilities::compressHistogram(histMagFieldCallsPerVolPerEvent);
+  utilities::compressHistogram(histSmallMagFieldCallsPerVolPerEvent);
+  utilities::compressHistogram(histNSecondariesPerVolPerEvent);
+  utilities::compressHistogram(histMeanStepSizePerVolPerEvent);
+  utilities::compressHistogram(histMeanStepSizePerPDGPerEvent);
+  utilities::compressHistogram(histNStepsPerPDGPerEvent);
+  utilities::compressHistogram(histNTracksPerPDGPerEvent);
+  utilities::compressHistogram(histRelNStepsPerVolPerEvent);
+  utilities::compressHistogram(histRelNTracksPerPDGPerEvent);
+  utilities::compressHistogram(histRelNStepsPerPDGPerEvent);
 }
