@@ -156,6 +156,7 @@ bool MCAnalysisManager::analyze(int nEvents, bool isDryrun)
     std::cout << "---> Event " << mCurrentEventNumber << " <---\n";
     std::cout << "#steps: " << mCurrentStepInfo->size() << "\n";
     std::cout << "#mag field calls: " << mCurrentMagCallInfo->size() << "\n";
+    std::cout << "#vol IDs " << mCurrentLookups->volidtovolname.size() << "\n";
     if (!isDryrun) {
       std::cout << "\nStart..." << std::endl;
       for (auto& a : mAnalyses) {
