@@ -32,6 +32,7 @@ set(SRCS
     ${IMP_SRC_DIR}/StepInfo.cxx
     ${IMP_SRC_DIR}/MCAnalysis.cxx
     ${IMP_SRC_DIR}/BasicMCAnalysis.cxx
+    ${IMP_SRC_DIR}/SimpleStepAnalysis.cxx
     ${IMP_SRC_DIR}/MCAnalysisManager.cxx
     ${IMP_SRC_DIR}/MCAnalysisFileWrapper.cxx
     ${IMP_SRC_DIR}/MCAnalysisUtilities.cxx
@@ -44,6 +45,7 @@ set(HEADERS
    ${INC_SRC_DIR}/MetaInfo.h
    ${INC_SRC_DIR}/MCAnalysis.h
    ${INC_SRC_DIR}/BasicMCAnalysis.h
+   ${INC_SRC_DIR}/SimpleStepAnalysis.h
    ${INC_SRC_DIR}/MCAnalysisManager.h
    ${INC_SRC_DIR}/MCAnalysisFileWrapper.h
    ${INC_SRC_DIR}/MCAnalysisUtilities.h
@@ -95,7 +97,7 @@ SET(ROOT_DICT_LIB_FILES
 add_library(${MODULE_NAME} SHARED ${SRCS} "${ROOT_DICT_NAME}.cxx" ${HEADERS})
 
 # Link together with ROOT libs
-target_link_libraries(${MODULE_NAME} -lCore -lHist -lGraf -lGpad -lTree -lVMC -lRIO -lGeom)
+target_link_libraries(${MODULE_NAME} -lCore -lHist -lGraf -lGpad -lTree -lVMC -lRIO -lGeom -lEG)
 
 # Add the executable to do analysis with the MCStepLogger output files
 add_executable(${EXECUTABLE_NAME} ${EXE_SRCS})

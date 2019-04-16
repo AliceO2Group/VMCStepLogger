@@ -89,6 +89,9 @@ class MCAnalysisManager
   void getLookupPDG(int trackId, int& id) const;
   /// parent track ID by track ID
   void getLookupParent(int trackId, int& parentId) const;
+
+  o2::StepLookups* const getLookups() const { return mCurrentLookups; }
+
   //
   // verbosity
   //
@@ -133,7 +136,7 @@ class MCAnalysisManager
   std::vector<o2::StepInfo>* mCurrentStepInfo = nullptr;
   /// information of magnetic field calls
   std::vector<o2::MagCallInfo>* mCurrentMagCallInfo = nullptr;
-  /// some lookups to map IDs to names
+  /// some lookups to map IDs to names as well as global properties of tracks
   o2::StepLookups* mCurrentLookups = nullptr;
   /// analysis files histograms are written to
   std::vector<MCAnalysisFileWrapper> mAnalysisFiles;
