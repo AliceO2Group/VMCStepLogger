@@ -23,8 +23,10 @@
 #include <TGeoManager.h>
 #include <TGeoMedium.h>
 #include <TGeoVolume.h>
+#include <TMCProcess.h>
 #include <cassert>
 #include <iostream>
+#include <fstream>
 
 ClassImp(o2::StepInfo);
 ClassImp(o2::MagCallInfo);
@@ -51,8 +53,7 @@ StepInfo::StepInfo(TVirtualMC* mc)
   auto id = mc->CurrentVolID(copyNo);
   volId = id;
 
-  auto curtrack = stack->GetCurrentTrack();
-  auto parentID = curtrack->IsPrimary() ? -1 : stack->GetCurrentParentTrackNumber();
+  auto parentID = trackID < stack->GetNprimary() ? -1 : stack->GetCurrentParentTrackNumber();
   lookupstructures.insertParent(trackID, parentID);
 
   // try to resolve the module via external map
@@ -67,7 +68,34 @@ StepInfo::StepInfo(TVirtualMC* mc)
       if (iter != volnametomodulemap->end()) {
         lookupstructures.insertModuleName(volId, iter->second);
       }
+      else {
+	// std::cout << "VOL NOT FOUND .. GO UP UNTIL WE FIND A KNOWN VOLUME NAME " << volname << "\n";
+	// trying to look upward
+        int up = 1;
+	int upcopy;
+        int upVolID;
+	const char* upVolName;
+        int limit = 20;
+	do {
+	  upVolID = mc->CurrentVolOffID(up,upcopy);
+	  upVolName = mc->CurrentVolOffName(up);
+          up++;
+	  auto iter2 = volnametomodulemap->find(upVolName);
+          if (iter2 != volnametomodulemap->end()) {
+	    lookupstructures.insertModuleName(volId, iter2->second);
+	    // std::cout << "FIXING TO " << iter2->second;
+	    break;
+	  }
+	}
+	while (up < limit);
+	//
+      }
     }
+  }
+
+  // sensitive volume info
+  if (lookupstructures.volidtoissensitive.size() > 0) {
+    insensitiveRegion = lookupstructures.volidtoissensitive[volId];
   }
 
   double xd, yd, zd;
@@ -77,18 +105,20 @@ StepInfo::StepInfo(TVirtualMC* mc)
   z = zd;
   step = mc->TrackStep();
   maxstep = mc->MaxStep();
-  E = curtrack->Energy();
+  E = mc->Etot();
   auto now = std::chrono::high_resolution_clock::now();
   // cputimestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(now - starttime).count();
   nsecondaries = mc->NSecondaries();
 
   if (nsecondaries > 0) {
-    secondaryprocesses = new int[nsecondaries];
-    // for the processes
-    for (int i = 0; i < nsecondaries; ++i) {
-      secondaryprocesses[i] = mc->ProdProcess(i);
-    }
+    lookupstructures.setProducedSecondary(trackID, true);
   }
+  
+  if (mc->IsTrackExiting()) {
+    lookupstructures.setCrossedBoundary(trackID, true);
+  }
+  
+  prodprocess = stack->GetCurrentTrack()->GetUniqueID();
 
   TArrayI procs;
   mc->StepProcesses(procs);
@@ -98,6 +128,10 @@ StepInfo::StepInfo(TVirtualMC* mc)
   stopped = mc->IsTrackStop();
 }
 
+const char* StepInfo::getProdProcessAsString() const {
+  return TMCProcessName[prodprocess];
+}
+  
 std::chrono::time_point<std::chrono::high_resolution_clock> StepInfo::starttime;
 int StepInfo::stepcounter = -1;
 std::map<std::string, std::string>* StepInfo::volnametomodulemap = nullptr;
@@ -113,4 +147,56 @@ MagCallInfo::MagCallInfo(TVirtualMC* mc, float ax, float ay, float az, float aBx
 }
 
 int MagCallInfo::stepcounter = -1;
+
+// try to init a map of volID to sensitive/ornot
+// by using a list of sensitive volume names (given in a file)
+// the current ROOT geometry loaded
+bool StepLookups::initSensitiveVolLookup(const std::string& filename)
+{
+  if (!gGeoManager) {
+    std::cerr << "[MCSTEPLOG] : Cannot setup sensitive lookup since GeoManager not found \n";
+    return false;
+  }
+  // get list of all TGeoVolumes
+  auto vlist = gGeoManager->GetListOfVolumes();
+  volidtoissensitive.resize(vlist->GetEntries(), false);
+
+  auto setSensitive = [this](int volID, bool sensitive) {
+    if (volID >= volidtoissensitive.size()) {
+      // should not happen
+      assert(false);
+    }
+    volidtoissensitive[volID] = sensitive;
+  };
+
+  // lambda returning all ids with that name
+  // assume the name to be unique
+  // unfortunately this is very slow: we should think about a more clever way
+  auto findSensVolumeAndRegister = [&vlist, setSensitive](const std::string& name) {
+    for (int i = 0; i < vlist->GetEntries(); ++i) {
+      auto v = static_cast<TGeoVolume*>(vlist->At(i));
+      if (strlen(v->GetName()) == strlen(name.c_str())) {
+        if (strcmp(v->GetName(), name.c_str()) == 0) {
+          setSensitive(v->GetNumber(), true);
+          std::cout << "Registering " << v->GetNumber() << " as id for sensitive volume " << name << "\n";
+        }
+      }
+    }
+  };
+
+  // open for reading or fail
+  std::ifstream ifs;
+  ifs.open(filename);
+  if (ifs.is_open()) {
+    std::string line;
+    std::vector<int> ids;
+    while (std::getline(ifs, line)) {
+      // a line is supposed to be a volume name
+      findSensVolumeAndRegister(line);
+    }
+    return true;
+  }
+  return false;
 }
+
+} // namespace o2

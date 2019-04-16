@@ -23,7 +23,6 @@ class TGeoMedium;
 
 namespace o2
 {
-// class collecting info about one MC step done
 
 struct VolInfoContainer {
   VolInfoContainer() = default;
@@ -57,8 +56,13 @@ struct StepLookups {
   std::vector<std::string*> volidtovolname;
   std::vector<std::string*> volidtomodule;
   std::vector<std::string*> volidtomedium;
+  std::vector<bool>         volidtoissensitive; // keep track of which volume is sensitive
   std::vector<int> tracktopdg;
   std::vector<int> tracktoparent; // when parent is -1 we mean primary
+  std::vector<int> stepcounterpertrack;
+  std::vector<float> tracktoenergy; // mapping of trackID to the track energy
+  std::vector<bool> crossedboundary; // if track every crossed a geometry boundary
+  std::vector<bool> producedsecondary; // if track ever produced a secondary
 
   void insertVolName(int index, std::string const& s) { insertValueAt(index, s, volidtovolname); }
   void insertModuleName(int index, std::string const& s) { insertValueAt(index, s, volidtomodule); }
@@ -82,6 +86,39 @@ struct StepLookups {
     tracktopdg[trackindex] = pdg;
   }
 
+  void incStepCount(int trackindex) {
+    if (trackindex >= stepcounterpertrack.size()) {
+      stepcounterpertrack.resize(trackindex + 1, 0);
+    }
+    stepcounterpertrack[trackindex]++;
+  }
+
+  void setProducedSecondary(int trackindex, bool b) {
+    if (trackindex >= producedsecondary.size()) {
+      producedsecondary.resize(trackindex + 1, false);
+    }
+    producedsecondary[trackindex]=b;
+  }
+
+  void setCrossedBoundary(int trackindex, bool b) {
+    if (trackindex >= crossedboundary.size()) {
+      crossedboundary.resize(trackindex + 1, false);
+    }
+    crossedboundary[trackindex]=b;
+  }
+
+  void setTrackEnergy(int trackindex, float e) {
+    if (trackindex >= tracktoenergy.size()) {
+      tracktoenergy.resize(trackindex + 1, -1.);
+    }
+    // only take the starting energy
+    if (tracktoenergy[trackindex]==-1.) {
+      tracktoenergy[trackindex]=e;
+    }
+  }
+
+  bool initSensitiveVolLookup(std::string const& filename);
+
   void insertParent(int trackindex, int parent)
   {
     constexpr int PRIMARY = -1;
@@ -93,6 +130,15 @@ struct StepLookups {
       std::cerr << "Warning: Seeing more than one parent for same trackID\n";
     }
     tracktoparent[trackindex] = parent;
+  }
+
+  void clearTrackLookups() {
+    tracktoparent.clear();
+    producedsecondary.clear();
+    crossedboundary.clear();
+    tracktopdg.clear();
+    stepcounterpertrack.clear();
+    tracktoenergy.clear();
   }
 
  private:
@@ -117,6 +163,7 @@ struct StepLookups {
   ClassDefNV(StepLookups, 1);
 };
 
+// struct collecting info about one MC step done
 struct StepInfo {
   StepInfo() = default;
   // construct directly using virtual mc
@@ -134,9 +181,12 @@ struct StepInfo {
   float step = 0.;
   float maxstep = 0.;
   int nsecondaries = 0;
-  int* secondaryprocesses = nullptr; //[nsecondaries]
+  int prodprocess = -1;   // prod process of current track
   int nprocessesactive = 0;          // number of active processes
   bool stopped = false;              //
+  bool insensitiveRegion = false;    // whether step done in sensitive region
+
+  const char* getProdProcessAsString() const;
 
   static int stepcounter;           //!
   static StepInfo* currentinstance; //!
