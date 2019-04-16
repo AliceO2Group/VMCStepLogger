@@ -58,6 +58,15 @@ const char* getVolMapFile()
   }
 }
 
+const char* getSensitiveVolFile()
+{
+  if (const char* f = std::getenv("MCSTEPLOG_SENSVOLFILE")) {
+    return f;
+  } else {
+    return "MCStepLoggerSenVol.dat";
+  }
+}
+
 // initializes a mapping from volumename to detector
 // used for step resolution to detectors
 void initVolumeMap()
@@ -76,7 +85,7 @@ void initVolumeMap()
       // split the line into key + value
       int counter = 0;
       std::string keyvalue[2] = { "NULL", "NULL" };
-      while (counter < 2 && std::getline(ss, token, ' ')) {
+      while (counter < 2 && std::getline(ss, token, ':')) {
         if (!token.empty()) {
           keyvalue[counter] = token;
           counter++;
@@ -216,6 +225,9 @@ class StepLogger
     }
     // try to load the volumename -> modulename mapping
     initVolumeMap();
+
+    // init the sensitive volume stuff
+    StepInfo::lookupstructures.initSensitiveVolLookup(getSensitiveVolFile());
   }
 
   void addStep(TVirtualMC* mc)
@@ -309,8 +321,7 @@ class StepLogger
       flushToTTree("Steps", &container);
       flushToTTree("Lookups", &StepInfo::lookupstructures);
       // we need to reset some parts of the lookupstructures for the next event
-      StepInfo::lookupstructures.tracktoparent.clear();
-      StepInfo::lookupstructures.tracktopdg.clear();
+      StepInfo::lookupstructures.clearTrackLookups();
     }
     clear();
   }

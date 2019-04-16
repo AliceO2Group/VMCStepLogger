@@ -22,6 +22,7 @@
 #include "MCStepLogger/MCAnalysisManager.h"
 #include "MCStepLogger/MCAnalysisFileWrapper.h"
 #include "MCStepLogger/BasicMCAnalysis.h"
+#include "MCStepLogger/SimpleStepAnalysis.h"
 
 using namespace o2::mcstepanalysis;
 
@@ -89,8 +90,10 @@ int analyze(const bpo::variables_map& vm, std::string& errorMessage)
     const std::string analysisDir = vm["analysis-dir"].as<std::string>().c_str();
     registerAnalyses(analysisDir);
   }
-  // create basic analysis by default, is registered automaticallyt to AnalysisManager
-  new BasicMCAnalysis();
+  // create simple analysis by default, is registered automatically to AnalysisManager
+  new SimpleStepAnalysis();
+  // new BasicMCAnalysis();
+
   //////////////////////////////////////////////////////////////////////////////////////////////
   // List analyses and quit. This has to be done here after analyses are read from analysis-dir
   // the first time the AnalysisManager is needed
