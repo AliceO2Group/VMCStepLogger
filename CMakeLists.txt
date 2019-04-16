@@ -95,7 +95,7 @@ SET(ROOT_DICT_LIB_FILES
 add_library(${MODULE_NAME} SHARED ${SRCS} "${ROOT_DICT_NAME}.cxx" ${HEADERS})
 
 # Link together with ROOT libs
-target_link_libraries(${MODULE_NAME} -lCore -lHist -lGraf -lGpad -lTree -lVMC -lRIO)
+target_link_libraries(${MODULE_NAME} -lCore -lHist -lGraf -lGpad -lTree -lVMC -lRIO -lGeom)
 
 # Add the executable to do analysis with the MCStepLogger output files
 add_executable(${EXECUTABLE_NAME} ${EXE_SRCS})
