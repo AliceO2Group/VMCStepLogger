@@ -69,7 +69,10 @@ class SimpleStepAnalysis : public MCAnalysis
   TH1I* histTrackEnergySpectrum;
   TH1I* histTrackPDGSpectrum;
   TH1I* histTrackPDGSpectrumSorted;
-  
+
+  /// the production processes per track
+  TH1I* histTrackProdProcess;
+
   // steps in the r-z plane
   TH2D* histRZ;
   // steps in the x-y plane

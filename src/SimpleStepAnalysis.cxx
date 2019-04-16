@@ -49,7 +49,8 @@ void SimpleStepAnalysis::initialize()
   histTrackEnergySpectrum = getHistogram<TH1I>("trackEnergySpectrum", 400, -10, 4.);
   histTrackPDGSpectrum = getHistogram<TH1I>("trackPDGSpectrum", 1, 2., 1.);
   histTrackPDGSpectrumSorted = getHistogram<TH1I>("trackPDGSpectrumSorted", 1, 2., 1.);
-  
+  histTrackProdProcess = getHistogram<TH1I>("trackProdProcess", 1, 2., 1.);
+
   // steps in the r-z plane
   histRZ = getHistogram<TH2D>("RZOccupancy", 200, -3000., 3000., 200, 0., 3000.);
   // steps in x-y plane
@@ -143,6 +144,7 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
     if (newtrack) {
       histTrackEnergySpectrum->Fill(log10f(step.E));
       histTrackPDGSpectrum->Fill(pdgasstring.c_str(),1);
+      histTrackProdProcess->Fill(step.getProdProcessAsString(),1);
     }
     
     // record number of steps per module
