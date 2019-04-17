@@ -183,7 +183,10 @@ struct StepInfo {
   int nsecondaries = 0;
   int prodprocess = -1;   // prod process of current track
   int nprocessesactive = 0;          // number of active processes
-  bool stopped = false;              //
+  bool stopped = false;              // if track was stopped during last step
+  bool entered = false;              // if track entered volume during last step
+  bool exited = false;               // if track exited volume during last step
+  bool newtrack = false;             // if track is new
   bool insensitiveRegion = false;    // whether step done in sensitive region
 
   const char* getProdProcessAsString() const;
