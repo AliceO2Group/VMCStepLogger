@@ -126,6 +126,9 @@ StepInfo::StepInfo(TVirtualMC* mc)
 
   // was track stopped due to energy limit ??
   stopped = mc->IsTrackStop();
+  exited = mc->IsTrackExiting();
+  entered = mc->IsTrackEntering();
+  newtrack = mc->IsNewTrack();
 }
 
 const char* StepInfo::getProdProcessAsString() const {
