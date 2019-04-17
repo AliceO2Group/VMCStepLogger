@@ -69,26 +69,25 @@ StepInfo::StepInfo(TVirtualMC* mc)
         lookupstructures.insertModuleName(volId, iter->second);
       }
       else {
-	// std::cout << "VOL NOT FOUND .. GO UP UNTIL WE FIND A KNOWN VOLUME NAME " << volname << "\n";
-	// trying to look upward
+        // std::cout << "VOL NOT FOUND .. GO UP UNTIL WE FIND A KNOWN VOLUME NAME " << volname << "\n";
+        // trying to look upward
         int up = 1;
-	int upcopy;
+        int upcopy;
         int upVolID;
-	const char* upVolName;
+        const char* upVolName;
         int limit = 20;
-	do {
-	  upVolID = mc->CurrentVolOffID(up,upcopy);
-	  upVolName = mc->CurrentVolOffName(up);
+        do {
+          upVolID = mc->CurrentVolOffID(up, upcopy);
+          upVolName = mc->CurrentVolOffName(up);
           up++;
-	  auto iter2 = volnametomodulemap->find(upVolName);
+          auto iter2 = volnametomodulemap->find(upVolName);
           if (iter2 != volnametomodulemap->end()) {
-	    lookupstructures.insertModuleName(volId, iter2->second);
-	    // std::cout << "FIXING TO " << iter2->second;
-	    break;
-	  }
-	}
-	while (up < limit);
-	//
+            lookupstructures.insertModuleName(volId, iter2->second);
+            // std::cout << "FIXING TO " << iter2->second;
+            break;
+          }
+        } while (up < limit);
+        //
       }
     }
   }
