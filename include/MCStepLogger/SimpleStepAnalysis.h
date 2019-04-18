@@ -58,6 +58,11 @@ class SimpleStepAnalysis : public MCAnalysis
   TH1I* histNStepsPerPDG;
   TH1I* histNStepsPerVolSorted;
 
+  // track production origins per module and volume
+  TH1I* histOriginPerMod;
+  TH1I* histOriginPerVol;
+  TH1I* histOriginPerVolSorted;
+
   // accumulated number of secondaries produced per volume
   TH1I* histNSecondariesPerVol;
   // accumulated number of secondaries produces per module
