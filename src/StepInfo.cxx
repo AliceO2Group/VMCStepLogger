@@ -27,6 +27,8 @@
 #include <cassert>
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <cstdlib>
 
 ClassImp(o2::StepInfo);
 ClassImp(o2::MagCallInfo);
@@ -163,29 +165,6 @@ bool StepLookups::initSensitiveVolLookup(const std::string& filename)
   auto vlist = gGeoManager->GetListOfVolumes();
   volidtoissensitive.resize(vlist->GetEntries(), false);
 
-  auto setSensitive = [this](int volID, bool sensitive) {
-    if (volID >= volidtoissensitive.size()) {
-      // should not happen
-      assert(false);
-    }
-    volidtoissensitive[volID] = sensitive;
-  };
-
-  // lambda returning all ids with that name
-  // assume the name to be unique
-  // unfortunately this is very slow: we should think about a more clever way
-  auto findSensVolumeAndRegister = [&vlist, setSensitive](const std::string& name) {
-    for (int i = 0; i < vlist->GetEntries(); ++i) {
-      auto v = static_cast<TGeoVolume*>(vlist->At(i));
-      if (strlen(v->GetName()) == strlen(name.c_str())) {
-        if (strcmp(v->GetName(), name.c_str()) == 0) {
-          setSensitive(v->GetNumber(), true);
-          std::cout << "Registering " << v->GetNumber() << " as id for sensitive volume " << name << "\n";
-        }
-      }
-    }
-  };
-
   // open for reading or fail
   std::ifstream ifs;
   ifs.open(filename);
@@ -193,8 +172,22 @@ bool StepLookups::initSensitiveVolLookup(const std::string& filename)
     std::string line;
     std::vector<int> ids;
     while (std::getline(ifs, line)) {
-      // a line is supposed to be a volume name
-      findSensVolumeAndRegister(line);
+      std::istringstream ss(line);
+      std::string token;
+      // split the line into key + value
+      int counter = 0;
+      std::string keyvalue[2] = { "NULL", "NULL" };
+      while (counter < 2 && std::getline(ss, token, ':')) {
+        if (!token.empty()) {
+          keyvalue[counter] = token;
+          counter++;
+        }
+      }
+      // mark this as sensitive
+      int index = atoi(keyvalue[0].c_str());
+      assert(index >= 0);
+      assert(index < volidtoissensitive.size());
+      volidtoissensitive[index] = true;
     }
     return true;
   }

@@ -224,10 +224,6 @@ class StepLogger
     if (std::getenv("MCSTEPLOG_TTREE")) {
       mTTreeIO = true;
     }
-
-
-    // init the sensitive volume stuff
-    StepInfo::lookupstructures.initSensitiveVolLookup(getSensitiveVolFile());
   }
 
   void addStep(TVirtualMC* mc)
@@ -235,6 +231,7 @@ class StepLogger
     if (!mVolMapInitialized) {
       // try to load the volumename -> modulename mapping
       initVolumeMap();
+      StepInfo::lookupstructures.initSensitiveVolLookup(getSensitiveVolFile());
       mVolMapInitialized = true;
     }
 
