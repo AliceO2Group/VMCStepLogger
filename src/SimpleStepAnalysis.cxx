@@ -34,6 +34,11 @@ void SimpleStepAnalysis::initialize()
   histNStepsPerMod = getHistogram<TH1I>("nStepsPerMod", 1, 2., 1.);
   // accumulated number of steps per volume
   histNStepsPerVol = getHistogram<TH1I>("nStepsPerVol", 1, 2., 1.);
+
+  histOriginPerMod = getHistogram<TH1I>("OriginsPerMod", 1, 2., 1.);
+  histOriginPerVol = getHistogram<TH1I>("OriginsPerVol", 1, 2., 1.);
+  histOriginPerVolSorted = getHistogram<TH1I>("OriginsPerVolSorted", 1, 2., 1.);
+
   // accumulated number of steps per pdg
   histNStepsPerPDG = getHistogram<TH1I>("nStepsPerPDG", 1, 2., 1.);
   histNStepsPerVolSorted = getHistogram<TH1I>("nStepsPerVolSorted", 1, 2., 1.);
@@ -115,9 +120,7 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
   
   // loop over all steps in an event
   for (const auto& step : *steps) {
-    int currentTrackID = step.trackID;
-    bool newtrack = (currentTrackID != oldTrackID);
-    if (newtrack) oldTrackID = currentTrackID;
+
     
     // prepare for PDG ids and volume names
     mAnalysisManager->getLookupPDG(step.trackID, pdgId);
@@ -133,6 +136,12 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
       continue;
     }
 
+    int currentTrackID = step.trackID;
+    bool newtrack = (currentTrackID != oldTrackID);
+    if (newtrack) {
+      oldTrackID = currentTrackID;
+    }
+
     if (keepsteps) {
       stepptr = &step;
       steptree->Fill();
@@ -145,6 +154,16 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
       histTrackEnergySpectrum->Fill(log10f(step.E));
       histTrackPDGSpectrum->Fill(pdgasstring.c_str(),1);
       histTrackProdProcess->Fill(step.getProdProcessAsString(),1);
+
+      auto originid = mAnalysisManager->getLookups()->trackorigin[step.trackID];
+      std::string originVolName;
+      // to store the module name
+      std::string originModName;
+      mAnalysisManager->getLookupVolName(originid, originVolName);
+      mAnalysisManager->getLookupModName(originid, originModName);
+
+      histOriginPerMod->Fill(originModName.c_str(), 1);
+      histOriginPerVol->Fill(originVolName.c_str(), 1);
     }
     
     // record number of steps per module
@@ -168,6 +187,11 @@ void SimpleStepAnalysis::finalize()
   *histNStepsPerVolSorted = *histNStepsPerVol;
   histNStepsPerVolSorted->SetName("nStepsPerVolSorted");
   histNStepsPerVolSorted->LabelsOption(">", "X");
+
+  *histOriginPerVolSorted = *histOriginPerVol;
+  histOriginPerVolSorted->SetName("OriginPerVolSorted");
+  histOriginPerVolSorted->LabelsOption(">", "X");
+  histOriginPerVolSorted->SetBins(30, 0, 30);
 
   std::cerr << "MOD have " << histNStepsPerMod->GetEntries() << " entries \n";
 

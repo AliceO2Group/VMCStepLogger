@@ -118,7 +118,11 @@ StepInfo::StepInfo(TVirtualMC* mc)
   if (mc->IsTrackExiting()) {
     lookupstructures.setCrossedBoundary(trackID, true);
   }
-  
+
+  if (mc->IsNewTrack()) {
+    lookupstructures.setTrackOrigin(trackID, volId);
+  }
+
   prodprocess = stack->GetCurrentTrack()->GetUniqueID();
 
   TArrayI procs;

@@ -60,7 +60,9 @@ struct StepLookups {
   std::vector<int> tracktopdg;
   std::vector<int> tracktoparent; // when parent is -1 we mean primary
   std::vector<int> stepcounterpertrack;
-  std::vector<float> tracktoenergy; // mapping of trackID to the track energy
+
+  std::vector<int> trackorigin;      // the volumeID where the track originates
+  std::vector<float> tracktoenergy;  // mapping of trackID to the track energy
   std::vector<bool> crossedboundary; // if track every crossed a geometry boundary
   std::vector<bool> producedsecondary; // if track ever produced a secondary
 
@@ -115,6 +117,14 @@ struct StepLookups {
     if (tracktoenergy[trackindex]==-1.) {
       tracktoenergy[trackindex]=e;
     }
+  }
+
+  void setTrackOrigin(int trackindex, int volID)
+  {
+    if (trackindex >= trackorigin.size()) {
+      trackorigin.resize(trackindex + 1, -1);
+    }
+    trackorigin[trackindex] = volID;
   }
 
   bool initSensitiveVolLookup(std::string const& filename);
