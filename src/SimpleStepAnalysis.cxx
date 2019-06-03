@@ -61,6 +61,14 @@ void SimpleStepAnalysis::initialize()
   // steps in x-y plane
   histXY = getHistogram<TH2D>("XYOccupancy", 200, -3000., 3000., 200, -3000., 3000.);
 
+  // Module/volume traversed before entering another one
+  histTraversedBeforePerMod = getHistogram<TH1I>("TraversedBeforePerMod", 1, 2., 1.);
+  histTraversedBeforePerVol = getHistogram<TH1I>("TraversedBeforePerVol", 1, 2., 1.);
+
+  // Traversed module/volume vs. origin
+  histTraversedBeforeVsOriginPerMod = getHistogram<TH2D>("TraversedBeforeVsOriginPerMod", 1, 2., 1., 1, 2., 1.);
+  histTraversedBeforeVsOriginPerVol = getHistogram<TH2D>("TraversedBeforeVsOriginPerVol", 1, 2., 1., 1, 2., 1.);
+
   // init runtime user cut
   // thanks to discussions with Philippe Canal, Fermilab
   auto cutcondition = getenv("MCSTEPCUT");
@@ -109,6 +117,10 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
   std::string volName;
   // to store the module name
   std::string modName;
+  // previous module ID
+  std::string oldModName;
+  // previous volume ID
+  std::string oldVolName;
 
   // total number of steps in this event
   int nSteps = 0;
@@ -117,11 +129,10 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
   int nCutSteps = 0;
 
   int oldTrackID = -1; // to notice when a track changes
-  
+
   // loop over all steps in an event
   for (const auto& step : *steps) {
 
-    
     // prepare for PDG ids and volume names
     mAnalysisManager->getLookupPDG(step.trackID, pdgId);
     mAnalysisManager->getLookupVolName(step.volId, volName);
@@ -133,13 +144,26 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
     // apply user defined cut -- if any
     if (mUserCutFunction && !(*mUserCutFunction)(step, volName, modName, pdgId, mAnalysisManager->getLookups())) {
       nCutSteps++;
+      // Must be updated otherwise we can never get the previous volume or module in case it's
+      // cutted on these and so volName == oldVolName in all cases
+      oldVolName = volName;
+      oldModName = modName;
       continue;
     }
 
     int currentTrackID = step.trackID;
-    bool newtrack = (currentTrackID != oldTrackID);
-    if (newtrack) {
+    // TODO Following not sufficient in case of the stacking mechanism in a multi VMC run
+    // https://github.com/root-project/root/commit/93992b135b37fe8d2592ead5cdbe3b44ef33fea1
+    bool trackFirstSeen = (currentTrackID != oldTrackID);
+
+    if (trackFirstSeen) {
       oldTrackID = currentTrackID;
+    }
+    bool newtrack = (step.newtrack && trackFirstSeen);
+    // If really a new track, the current module/volume is the origin
+    if(newtrack) {
+      oldModName = modName;
+      oldVolName = volName;
     }
 
     if (keepsteps) {
@@ -147,25 +171,40 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
       steptree->Fill();
     }
 
-    auto pdgparticle = pdgdatabase->GetParticle(pdgId);    
+    auto pdgparticle = pdgdatabase->GetParticle(pdgId);
     std::string pdgasstring(pdgparticle? pdgparticle->GetName() : std::to_string(pdgId));
 
-    if (newtrack) {
+    auto originid = mAnalysisManager->getLookups()->trackorigin[step.trackID];
+    std::string originVolName;
+    // to store the module name
+    std::string originModName;
+    mAnalysisManager->getLookupVolName(originid, originVolName);
+    mAnalysisManager->getLookupModName(originid, originModName);
+
+    if (trackFirstSeen) {
       histTrackEnergySpectrum->Fill(log10f(step.E));
       histTrackPDGSpectrum->Fill(pdgasstring.c_str(),1);
       histTrackProdProcess->Fill(step.getProdProcessAsString(),1);
 
-      auto originid = mAnalysisManager->getLookups()->trackorigin[step.trackID];
-      std::string originVolName;
-      // to store the module name
-      std::string originModName;
-      mAnalysisManager->getLookupVolName(originid, originVolName);
-      mAnalysisManager->getLookupModName(originid, originModName);
-
       histOriginPerMod->Fill(originModName.c_str(), 1);
       histOriginPerVol->Fill(originVolName.c_str(), 1);
+
     }
-    
+    if(volName.compare(oldVolName) != 0 || newtrack) {
+      histTraversedBeforePerVol->Fill(oldVolName.c_str(), 1);
+      histTraversedBeforeVsOriginPerVol->Fill(originVolName.c_str(), oldVolName.c_str(), 1);
+      // This can be nested here since a module change implies a volume change,
+      // but not necessarily the other way round
+      if(modName.compare(oldModName) != 0 || newtrack) {
+        histTraversedBeforePerMod->Fill(oldModName.c_str(), 1);
+        histTraversedBeforeVsOriginPerMod->Fill(originModName.c_str(), oldModName.c_str(), 1);
+      }
+    }
+
+    // Update these after they have been used
+    oldVolName = volName;
+    oldModName = modName;
+
     // record number of steps per module
     histNStepsPerMod->Fill(modName.c_str(), 1);
     // record number of steps per volume
@@ -179,6 +218,7 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
 
     histRZ->Fill(step.z, std::sqrt(step.x * step.x + step.y * step.y));
     histXY->Fill(step.x, step.y);
+
   }
 }
 
@@ -199,7 +239,7 @@ void SimpleStepAnalysis::finalize()
   histTrackPDGSpectrumSorted->SetName("trackPDGSpectrumSorted");
   histTrackPDGSpectrumSorted->LabelsOption(">", "X");
   histTrackPDGSpectrumSorted->SetBins(10,0,10);
-  
+
   // sortit
   // histNStepsPerVolSorted->LabelsOption(">", "X");
 
@@ -211,6 +251,13 @@ void SimpleStepAnalysis::finalize()
   histNSecondariesPerVol->LabelsOption(">", "X");
   histNSecondariesPerVol->SetBins(30,0,30);
 
+  utilities::compressHistogram(histTraversedBeforePerMod);
+  utilities::compressHistogram(histTraversedBeforePerVol);
+
+  histTraversedBeforeVsOriginPerMod->LabelsDeflate("X");
+  histTraversedBeforeVsOriginPerMod->LabelsDeflate("Y");
+  histTraversedBeforeVsOriginPerMod->GetXaxis()->SetTitle("origins");
+  histTraversedBeforeVsOriginPerMod->GetYaxis()->SetTitle("traversed before");
 
   if(getenv("KEEPSTEPS")) {
     std::cout << "Writing step tree\n";
