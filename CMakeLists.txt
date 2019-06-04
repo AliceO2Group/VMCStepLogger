@@ -19,16 +19,21 @@ SET(INSTALL_LIB_DIR ${CMAKE_INSTALL_PREFIX}/lib)
 SET(IMP_SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 SET(INC_SRC_DIR ${CMAKE_SOURCE_DIR}/include/${MODULE_NAME})
 SET(MACRO_SRC_DIR ${CMAKE_SOURCE_DIR}/macro)
+SET(PLUGIN_SRC_DIR ${CMAKE_SOURCE_DIR}/plugins)
 
 # Library name
 SET(LIBRARY_NAME ${MODULE_NAME})
 # Executable name
 SET(EXECUTABLE_NAME mcStepAnalysis)
 
+# Plugins
+set(PLUGINS)
+
 # Required source files to build the library.
 set(SRCS
     ${IMP_SRC_DIR}/MCStepInterceptor.cxx
     ${IMP_SRC_DIR}/MCStepLoggerImpl.cxx
+    ${IMP_SRC_DIR}/StepLoggerUtilities.cxx
     ${IMP_SRC_DIR}/StepInfo.cxx
     ${IMP_SRC_DIR}/MCAnalysis.cxx
     ${IMP_SRC_DIR}/BasicMCAnalysis.cxx
@@ -42,6 +47,9 @@ set(SRCS
 # Requried headers to build the library.
 set(HEADERS
    ${INC_SRC_DIR}/StepInfo.h
+   ${INC_SRC_DIR}/StepLogger.h
+   ${INC_SRC_DIR}/FieldLogger.h
+   ${INC_SRC_DIR}/StepLoggerUtilities.h
    ${INC_SRC_DIR}/MetaInfo.h
    ${INC_SRC_DIR}/MCAnalysis.h
    ${INC_SRC_DIR}/BasicMCAnalysis.h
@@ -51,6 +59,23 @@ set(HEADERS
    ${INC_SRC_DIR}/MCAnalysisUtilities.h
    ${INC_SRC_DIR}/ROOTIOUtilities.h
   )
+
+set(ROOT_DICT_HEADERS
+   ${INC_SRC_DIR}/StepInfo.h
+   ${INC_SRC_DIR}/MetaInfo.h
+   ${INC_SRC_DIR}/MCAnalysis.h
+   ${INC_SRC_DIR}/BasicMCAnalysis.h
+   ${INC_SRC_DIR}/SimpleStepAnalysis.h
+   ${INC_SRC_DIR}/MCAnalysisManager.h
+   ${INC_SRC_DIR}/MCAnalysisFileWrapper.h
+   ${INC_SRC_DIR}/MCAnalysisUtilities.h
+   ${INC_SRC_DIR}/ROOTIOUtilities.h
+)
+
+set(O2_HIT_PLUGIN_SRCS
+    ${PLUGIN_SRC_DIR}/O2HitIntercept.cxx
+    )
+
 include_directories(include/)
 
 # Required source for the executable
@@ -85,7 +110,7 @@ include_directories(${Boost_INCLUDE_DIR})
 SET(ROOT_DICT_LINKDEF_FILE ${IMP_SRC_DIR}/MCStepLoggerLinkDef.h)
 SET(ROOT_DICT_NAME "G__${MODULE_NAME}")
 
-ROOT_GENERATE_DICTIONARY(${ROOT_DICT_NAME} ${HEADERS} LINKDEF ${ROOT_DICT_LINKDEF_FILE})
+ROOT_GENERATE_DICTIONARY(${ROOT_DICT_NAME} ${ROOT_DICT_HEADERS} LINKDEF ${ROOT_DICT_LINKDEF_FILE})
 # Files produced by the dictionary generation
 SET(ROOT_DICT_LIB_FILES
     "${PROJECT_BINARY_DIR}/lib${MODULE_NAME}_rdict.pcm"
@@ -95,9 +120,13 @@ SET(ROOT_DICT_LIB_FILES
 # Build a library from the sources specified above together with generated ROOT
 # dictionary
 add_library(${MODULE_NAME} SHARED ${SRCS} "${ROOT_DICT_NAME}.cxx" ${HEADERS})
-
 # Link together with ROOT libs
 target_link_libraries(${MODULE_NAME} -lCore -lHist -lGraf -lGpad -lTree -lVMC -lRIO -lGeom -lEG)
+
+# Plugins
+add_library(O2HitIntercept SHARED ${O2_HIT_PLUGIN_SRCS})
+target_link_libraries(O2HitIntercept ${MODULE_NAME})
+set(PLUGINS ${PLUGINS} O2HitIntercept)
 
 # Add the executable to do analysis with the MCStepLogger output files
 add_executable(${EXECUTABLE_NAME} ${EXE_SRCS})
@@ -106,7 +135,7 @@ target_link_libraries(${EXECUTABLE_NAME} ${MODULE_NAME} ${Boost_LIBRARIES})
 # Install headers
 install(FILES ${HEADERS} DESTINATION ${INSTALL_INC_DIR})
 # Install libraries
-install(TARGETS ${MODULE_NAME} DESTINATION ${INSTALL_LIB_DIR})
+install(TARGETS ${MODULE_NAME} ${PLUGINS} DESTINATION ${INSTALL_LIB_DIR})
 # Install the ROOT dictionary files
 install(FILES ${ROOT_DICT_LIB_FILES} DESTINATION ${INSTALL_LIB_DIR})
 # Install executables

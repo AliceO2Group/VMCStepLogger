@@ -54,6 +54,10 @@ class SimpleStepAnalysis : public MCAnalysis
   TH1I* histNStepsPerMod;
   // accumulated number of steps per volume
   TH1I* histNStepsPerVol;
+  // accumulate number of hits per module/region
+  TH1I* histNHitsPerMod;
+  // accumulated number of hits per volume
+  TH1I* histNHitsPerVol;
   // accumulated number of steps per pdg
   TH1I* histNStepsPerPDG;
   TH1I* histNStepsPerVolSorted;

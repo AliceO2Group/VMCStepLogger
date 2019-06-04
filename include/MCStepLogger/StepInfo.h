@@ -198,6 +198,7 @@ struct StepInfo {
   bool exited = false;               // if track exited volume during last step
   bool newtrack = false;             // if track is new
   bool insensitiveRegion = false;    // whether step done in sensitive region
+  int detectorHitId = -1;            // Monitor the detector ID in case this step produced a hit
 
   const char* getProdProcessAsString() const;
 

@@ -90,6 +90,22 @@ DYLD_INSERT_LIBRARIES=/Users/laurent/alice/sw/osx_x86-64/O2/latest-clion-o2/lib/
 `LD_DEBUG=statistics` must be replaced by `DYLD_PRINT_STATISTICS=1`
 
 
+## Plugins
+
+Together with the standard
+
+```bash
+LD_PRELOAD=path_to/libMCStepLogger.so o2-sim-serial <args>
+```
+
+additional intercepts can be loaded whose sources can be found in [plugins](./plugins). For now, [O2HitIntercept](./plugins/O2HitIntercept.cxx) is used to attach hit information for each step and it is compiled into its own library `libO2HitIntercept.so`. This is done, since hit creation is not a responsibility of `VMC` and hence is separated from the basic step logging.
+
+To use this `O2` specific plugin and attach hit information run
+
+```bash
+LD_PRELOAD="path_to/libMCStepLogger.so path_to/libO2HitIntercept.so" o2-sim-serial <args>
+```
+
 ## MCStepLogAnalysis
 
 Information collected and stored in `MCStepLoggerOutput.root` can be further investigated using the excutable `mcStepAnalysis`. This executable is independent of the simulation itself and produces therefore no overhead when running a simulation. 2 commands are so far available (`analyze`, `checkFile`) including useful help message when typing

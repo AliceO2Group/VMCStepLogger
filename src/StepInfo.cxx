@@ -114,7 +114,7 @@ StepInfo::StepInfo(TVirtualMC* mc)
   if (nsecondaries > 0) {
     lookupstructures.setProducedSecondary(trackID, true);
   }
-  
+
   if (mc->IsTrackExiting()) {
     lookupstructures.setCrossedBoundary(trackID, true);
   }
@@ -139,7 +139,7 @@ StepInfo::StepInfo(TVirtualMC* mc)
 const char* StepInfo::getProdProcessAsString() const {
   return TMCProcessName[prodprocess];
 }
-  
+
 std::chrono::time_point<std::chrono::high_resolution_clock> StepInfo::starttime;
 int StepInfo::stepcounter = -1;
 std::map<std::string, std::string>* StepInfo::volnametomodulemap = nullptr;
@@ -161,6 +161,8 @@ int MagCallInfo::stepcounter = -1;
 // the current ROOT geometry loaded
 bool StepLookups::initSensitiveVolLookup(const std::string& filename)
 {
+
+  
   if (!gGeoManager) {
     std::cerr << "[MCSTEPLOG] : Cannot setup sensitive lookup since GeoManager not found \n";
     return false;

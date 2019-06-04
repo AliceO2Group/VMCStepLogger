@@ -34,6 +34,10 @@ void SimpleStepAnalysis::initialize()
   histNStepsPerMod = getHistogram<TH1I>("nStepsPerMod", 1, 2., 1.);
   // accumulated number of steps per volume
   histNStepsPerVol = getHistogram<TH1I>("nStepsPerVol", 1, 2., 1.);
+  // accumulate number of hits per module/region
+  histNHitsPerMod = getHistogram<TH1I>("nHitsPerMod", 1, 2., 1.);
+  // accumulated number of hits per volume
+  histNHitsPerVol = getHistogram<TH1I>("nHitsPerVol", 1, 2., 1.);
 
   histOriginPerMod = getHistogram<TH1I>("OriginsPerMod", 1, 2., 1.);
   histOriginPerVol = getHistogram<TH1I>("OriginsPerVol", 1, 2., 1.);
@@ -151,6 +155,11 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
       continue;
     }
 
+    if(step.detectorHitId >= 0) {
+      histNHitsPerMod->Fill(modName.c_str(), 1);
+      histNHitsPerVol->Fill(volName.c_str(), 1);
+    }
+
     int currentTrackID = step.trackID;
     // TODO Following not sufficient in case of the stacking mechanism in a multi VMC run
     // https://github.com/root-project/root/commit/93992b135b37fe8d2592ead5cdbe3b44ef33fea1
@@ -226,38 +235,43 @@ void SimpleStepAnalysis::finalize()
 {
   *histNStepsPerVolSorted = *histNStepsPerVol;
   histNStepsPerVolSorted->SetName("nStepsPerVolSorted");
-  histNStepsPerVolSorted->LabelsOption(">", "X");
+  utilities::compressHistogram(histNStepsPerVolSorted);
 
   *histOriginPerVolSorted = *histOriginPerVol;
   histOriginPerVolSorted->SetName("OriginPerVolSorted");
-  histOriginPerVolSorted->LabelsOption(">", "X");
-  histOriginPerVolSorted->SetBins(30, 0, 30);
+  utilities::compressHistogram(histOriginPerVolSorted);
 
   std::cerr << "MOD have " << histNStepsPerMod->GetEntries() << " entries \n";
 
   *histTrackPDGSpectrumSorted = *histTrackPDGSpectrum;
   histTrackPDGSpectrumSorted->SetName("trackPDGSpectrumSorted");
-  histTrackPDGSpectrumSorted->LabelsOption(">", "X");
-  histTrackPDGSpectrumSorted->SetBins(10,0,10);
+  utilities::compressHistogram(histTrackPDGSpectrumSorted);
 
   // sortit
   // histNStepsPerVolSorted->LabelsOption(">", "X");
 
   histNStepsPerVolSorted->SetBins(30, 0, 30);
-  histNStepsPerMod->LabelsOption(">", "X");
-  histNStepsPerMod->SetBins(20,0,20);
 
-  histNSecondariesPerMod->LabelsOption(">", "X");
-  histNSecondariesPerVol->LabelsOption(">", "X");
-  histNSecondariesPerVol->SetBins(30,0,30);
+  utilities::compressHistogram(histNStepsPerMod);
+
+  utilities::compressHistogram(histNSecondariesPerMod);
+  utilities::compressHistogram(histNSecondariesPerVol);
 
   utilities::compressHistogram(histTraversedBeforePerMod);
   utilities::compressHistogram(histTraversedBeforePerVol);
+
+  utilities::compressHistogram(histNHitsPerMod);
+  utilities::compressHistogram(histNHitsPerVol);
 
   histTraversedBeforeVsOriginPerMod->LabelsDeflate("X");
   histTraversedBeforeVsOriginPerMod->LabelsDeflate("Y");
   histTraversedBeforeVsOriginPerMod->GetXaxis()->SetTitle("origins");
   histTraversedBeforeVsOriginPerMod->GetYaxis()->SetTitle("traversed before");
+
+  histTraversedBeforeVsOriginPerVol->LabelsDeflate("X");
+  histTraversedBeforeVsOriginPerVol->LabelsDeflate("Y");
+  histTraversedBeforeVsOriginPerVol->GetXaxis()->SetTitle("origins");
+  histTraversedBeforeVsOriginPerVol->GetYaxis()->SetTitle("traversed before");
 
   if(getenv("KEEPSTEPS")) {
     std::cout << "Writing step tree\n";
