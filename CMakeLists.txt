@@ -2,6 +2,7 @@
 # @brief  cmake setup for module Utilities/MCStepLogger
 
 set(MODULE_NAME "MCStepLogger")
+set(BUILD_SHARED_LIBS ON)
 
 # Minimum version of CMake
 CMAKE_MINIMUM_REQUIRED(VERSION 3.11.0 FATAL_ERROR)
@@ -101,7 +102,7 @@ target_link_libraries(${MODULE_NAME} -lCore -lHist -lGraf -lGpad -lTree -lVMC -l
 
 # Add the executable to do analysis with the MCStepLogger output files
 add_executable(${EXECUTABLE_NAME} ${EXE_SRCS})
-target_link_libraries(${EXECUTABLE_NAME} ${MODULE_NAME} ${Boost_LIBRARIES})
+target_link_libraries(${EXECUTABLE_NAME} ${MODULE_NAME} ${Boost_LIBRARIES} Boost::program_options)
 
 # Install headers
 install(FILES ${HEADERS} DESTINATION ${INSTALL_INC_DIR})
