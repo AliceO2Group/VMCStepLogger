@@ -101,7 +101,7 @@ namespace o2
 {
 namespace field
 {
-INTERCEPT_FIELD(MagneticField, "libField", "_ZN2o25field13MagneticField5FieldEPKdPd");
+INTERCEPT_FIELD(MagneticField, "libO2Field", "_ZN2o25field13MagneticField5FieldEPKdPd");
 }
 }
 // for AliRoot
