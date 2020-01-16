@@ -7,13 +7,16 @@ set(MODULE_NAME "MCStepLogger")
 CMAKE_MINIMUM_REQUIRED(VERSION 3.11.0 FATAL_ERROR)
 
 project(${MODULE_NAME})
-
+set(CMAKE_MODULE_PATH
+    ${CMAKE_MODULE_PATH}
+    ${CMAKE_SOURCE_DIR}/cmake)
 
 # Install directories
 SET(INSTALL_BIN_DIR ${CMAKE_INSTALL_PREFIX}/bin)
 SET(INSTALL_MACRO_DIR ${CMAKE_INSTALL_PREFIX}/macro)
 SET(INSTALL_INC_DIR ${CMAKE_INSTALL_PREFIX}/include/${MODULE_NAME})
 SET(INSTALL_LIB_DIR ${CMAKE_INSTALL_PREFIX}/lib)
+SET(INSTALL_CMAKE_DIR ${CMAKE_INSTALL_PREFIX}/cmake)
 
 # Source directories
 SET(IMP_SRC_DIR ${CMAKE_SOURCE_DIR}/src)
@@ -69,17 +72,13 @@ set(MACROS
 # Find ROOT and get useful functions from ROOT_USE_FILE,
 # e.g. ROOT_GENERATE_DICTIONARY
 list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
-find_package(ROOT REQUIRED)
+find_package(ROOT REQUIRED COMPONENTS Core Hist Graf Gpad Tree VMC RIO Geom EG)
 include(${ROOT_USE_FILE})
-# Find ROOT headers
-include_directories(${ROOT_INCLUDE_DIRS})
 
 #########
 # Boost #
 #########
-#find_package(Boost COMPONENTS container thread system timer program_options random filesystem chrono exception regex serialization log log_setup unit_test_framework date_time signals iostreams REQUIRED)
 find_package(Boost COMPONENTS program_options chrono unit_test_framework REQUIRED)
-include_directories(${Boost_INCLUDE_DIR})
 
 # Generate ROOT dictionary
 SET(ROOT_DICT_LINKDEF_FILE ${IMP_SRC_DIR}/MCStepLoggerLinkDef.h)
@@ -92,24 +91,57 @@ SET(ROOT_DICT_LIB_FILES
     "${PROJECT_BINARY_DIR}/lib${MODULE_NAME}.rootmap"
 )
 
+###############################
+# Determine CXX STD from ROOT #
+###############################
+SET(CMAKE_CXX_STANDARD 11)
+# Find ROOT CXX standard
+string(FIND ${ROOT_CXX_FLAGS} "-std=" POSITION)
+if (${POSITION} GREATER -1)
+    string(SUBSTRING ${ROOT_CXX_FLAGS} ${POSITION} 11 ROOT_CXX_STD)
+    if(${ROOT_CXX_STD} STREQUAL "-std=c++1z " OR ${ROOT_CXX_STD} STREQUAL "-std=c++17 ")
+        SET(CMAKE_CXX_STANDARD 17)
+    elseif(${ROOT_CXX_STD} STREQUAL "-std=c++1y " OR ${ROOT_CXX_STD} STREQUAL "-std=c++14 ")
+        SET(CMAKE_CXX_STANDARD 14)
+    endif()
+endif()
+message(STATUS "Build with CXX STD ${CMAKE_CXX_STANDARD}")
+
 # Build a library from the sources specified above together with generated ROOT
 # dictionary
 add_library(${MODULE_NAME} SHARED ${SRCS} "${ROOT_DICT_NAME}.cxx" ${HEADERS})
 
 # Link together with ROOT libs
-target_link_libraries(${MODULE_NAME} -lCore -lHist -lGraf -lGpad -lTree -lVMC -lRIO -lGeom -lEG)
-
-# Add the executable to do analysis with the MCStepLogger output files
-add_executable(${EXECUTABLE_NAME} ${EXE_SRCS})
-target_link_libraries(${EXECUTABLE_NAME} ${MODULE_NAME} ${Boost_LIBRARIES})
+set(LIB_DEPS ROOT::Core ROOT::Hist ROOT::Graf ROOT::Gpad ROOT::Tree ROOT::VMC ROOT::RIO ROOT::Geom ROOT::EG)
+target_link_libraries(${MODULE_NAME} ${LIB_DEPS})
+set_target_properties(${MODULE_NAME} PROPERTIES INTERFACE_LINK_LIBRARIES "${LIB_DEPS}")
+target_include_directories(${MODULE_NAME} INTERFACE $<INSTALL_INTERFACE:include>)
 
 # Install headers
 install(FILES ${HEADERS} DESTINATION ${INSTALL_INC_DIR})
-# Install libraries
-install(TARGETS ${MODULE_NAME} DESTINATION ${INSTALL_LIB_DIR})
+
+# Install libraries (and add to export such that we can easily find its dependencies later)
+install(TARGETS ${MODULE_NAME} DESTINATION ${INSTALL_LIB_DIR} EXPORT ${CMAKE_PROJECT_NAME}Exports)
+
 # Install the ROOT dictionary files
 install(FILES ${ROOT_DICT_LIB_FILES} DESTINATION ${INSTALL_LIB_DIR})
-# Install executables
-install(TARGETS ${EXECUTABLE_NAME} DESTINATION ${INSTALL_BIN_DIR})
+
+# Install executables (and add to export such that we can easily find its dependencies later)
+add_executable(${EXECUTABLE_NAME} ${EXE_SRCS})
+set(EXE_DEPS ${MODULE_NAME} Boost::program_options Boost::chrono Boost::unit_test_framework)
+target_link_libraries(${EXECUTABLE_NAME} ${EXE_DEPS})
+install(TARGETS ${EXECUTABLE_NAME} DESTINATION ${INSTALL_BIN_DIR} EXPORT ${CMAKE_PROJECT_NAME}Exports)
+
 # Install macros
 install(FILES ${MACROS} DESTINATION ${INSTALL_MACRO_DIR})
+
+# Install exports to find targets and dependencies later
+install(EXPORT ${CMAKE_PROJECT_NAME}Exports NAMESPACE MCStepLogger:: FILE MCStepLoggerTargets.cmake DESTINATION ${INSTALL_CMAKE_DIR})
+
+# Configure and install the config to be used by CMake of depending package
+configure_file(
+    "${PROJECT_SOURCE_DIR}/cmake/MCStepLoggerConfig.cmake.in"
+    "${PROJECT_BINARY_DIR}/MCStepLoggerConfig.cmake" @ONLY)
+install(FILES
+    "${PROJECT_BINARY_DIR}/MCStepLoggerConfig.cmake"
+    DESTINATION ${INSTALL_CMAKE_DIR})
