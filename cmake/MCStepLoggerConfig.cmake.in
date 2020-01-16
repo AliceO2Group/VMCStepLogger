@@ -1,0 +1,5 @@
+# Compute installation prefix relative to this file
+get_filename_component(_prefix "${_dir}/../.." ABSOLUTE)
+
+# Import targets
+include("${_dir}/MCStepLoggerTargets.cmake")
