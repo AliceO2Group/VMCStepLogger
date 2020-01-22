@@ -19,11 +19,18 @@ Note that some of the instructions below especially apply to the usage together 
 
 ## MCStepLogger
 
-Detailed debug information about stepping can be directed to standard output using the `LD_PRELOAD` env variable, which "injects" a
- special logging library (which intercepts some calls) in the executable that follows in the command line.
+3 libraries are built
+
+1. MCStepLoggerCore
+2. MCStepLoggerIntercept
+3. MCStepLoggerAnalysis
+
+The first one contains core classes like `o2::StepInfo` to be used in depending packages and the same is true for the third one which contains analysis specific code.
+
+The second library `MCStepLoggerIntercept` allows for detailed debug information where stepping can be directed to standard output using the `LD_PRELOAD` env variable, which "injects" this library (which intercepts some calls) in the executable that follows in the command line.
 
 ```bash
-LD_PRELOAD=path_to/libMCStepLogger.so o2sim -m MCH -n 10
+LD_PRELOAD=path_to/libMCStepLoggerIntercept.so o2sim -m MCH -n 10
 ```
 
 
