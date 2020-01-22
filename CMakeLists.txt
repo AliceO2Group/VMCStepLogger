@@ -125,7 +125,7 @@ message(STATUS "Build with CXX STD ${CMAKE_CXX_STANDARD}")
 ####################
 # Add main library #
 ####################
-set(lib_core Core)
+set(lib_core "${MODULE_NAME}Core")
 
 # Generate ROOT dictionary
 SET(ROOT_DICT_LINKDEF_FILE_CORE "${IMP_SRC_DIR}/${lib_core}LinkDef.h")
@@ -142,10 +142,11 @@ target_link_libraries(${lib_core} ${LIB_DEPS})
 set_target_properties(${lib_core} PROPERTIES INTERFACE_LINK_LIBRARIES "${LIB_DEPS}")
 target_include_directories(${lib_core} INTERFACE $<INSTALL_INTERFACE:include>)
 
+
 #########################
 # Add intercept library #
 #########################
-set(lib_intercept Intercept)
+set(lib_intercept "${MODULE_NAME}Intercept")
 
 # Generate ROOT dictionary
 SET(ROOT_DICT_LINKDEF_FILE_INTERCEPT "${IMP_SRC_DIR}/${lib_intercept}LinkDef.h")
@@ -164,7 +165,7 @@ target_include_directories(${lib_intercept} INTERFACE $<INSTALL_INTERFACE:includ
 ########################
 # Add analysis library #
 ########################
-set(lib_analysis Analysis)
+set(lib_analysis "${MODULE_NAME}Analysis")
 
 # Generate ROOT dictionary
 SET(ROOT_DICT_LINKDEF_FILE_ANALYSIS "${IMP_SRC_DIR}/${lib_analysis}LinkDef.h")
@@ -203,7 +204,7 @@ install(TARGETS ${EXECUTABLE_NAME} DESTINATION ${INSTALL_BIN_DIR} EXPORT ${CMAKE
 install(FILES ${MACROS} DESTINATION ${INSTALL_MACRO_DIR})
 
 # Install exports to find targets and dependencies later
-install(EXPORT ${CMAKE_PROJECT_NAME}Exports NAMESPACE MCStepLogger:: FILE MCStepLoggerTargets.cmake DESTINATION ${INSTALL_CMAKE_DIR})
+install(EXPORT ${CMAKE_PROJECT_NAME}Exports FILE MCStepLoggerTargets.cmake DESTINATION ${INSTALL_CMAKE_DIR})
 
 # Configure and install the config to be used by CMake of depending package
 configure_file(
