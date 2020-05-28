@@ -234,7 +234,9 @@ bool ROOTIOUtilities::fetchData(int event)
   else {
     gotten = mTTree->GetEntry(mTTreeCounter++);
   }
-  return (gotten > 0);
+  // using !=0 since ROOT sometimes gives back negative byte counts
+  // due to overflow
+  return (gotten != 0);
 }
 bool ROOTIOUtilities::flushToTTree()
 {
