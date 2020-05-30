@@ -205,7 +205,7 @@ void SimpleStepAnalysis::finalize()
 
   histNStepsPerVolSorted->SetBins(30, 0, 30);
   histNStepsPerMod->LabelsOption(">", "X");
-  histNStepsPerMod->SetBins(20,0,20);
+  histNStepsPerMod->SetBins(30,0,30);
 
   histNSecondariesPerMod->LabelsOption(">", "X");
   histNSecondariesPerVol->LabelsOption(">", "X");
