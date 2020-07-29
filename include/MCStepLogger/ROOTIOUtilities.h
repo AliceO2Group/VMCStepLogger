@@ -21,6 +21,7 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "TBranch.h"
+#include "TKey.h"
 
 namespace o2
 {
