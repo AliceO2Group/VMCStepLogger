@@ -106,7 +106,9 @@ StepInfo::StepInfo(TVirtualMC* mc)
   z = zd;
   step = mc->TrackStep();
   maxstep = mc->MaxStep();
-  E = mc->Etot();
+  mc->TrackMomentum(px, py, pz, E);
+  edep = mc->Edep();
+
   auto now = std::chrono::high_resolution_clock::now();
   // cputimestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(now - starttime).count();
   nsecondaries = mc->NSecondaries();
@@ -114,7 +116,6 @@ StepInfo::StepInfo(TVirtualMC* mc)
   if (nsecondaries > 0) {
     lookupstructures.setProducedSecondary(trackID, true);
   }
-  
   if (mc->IsTrackExiting()) {
     lookupstructures.setCrossedBoundary(trackID, true);
   }
@@ -139,7 +140,6 @@ StepInfo::StepInfo(TVirtualMC* mc)
 const char* StepInfo::getProdProcessAsString() const {
   return TMCProcessName[prodprocess];
 }
-  
 std::chrono::time_point<std::chrono::high_resolution_clock> StepInfo::starttime;
 int StepInfo::stepcounter = -1;
 std::map<std::string, std::string>* StepInfo::volnametomodulemap = nullptr;
