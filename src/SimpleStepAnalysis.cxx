@@ -1,8 +1,9 @@
-// Copyright CERN and copyright holders of ALICE O2. This software is
-// distributed under the terms of the GNU General Public License v3 (GPL
-// Version 3), copied verbatim in the file "COPYING".
+// Copyright 2019-2020 CERN and copyright holders of ALICE O2.
+// See https://alice-o2.web.cern.ch/copyright for details of the copyright holders.
+// All rights not expressly granted are reserved.
 //
-// See http://alice-o2.web.cern.ch/license for full licensing information.
+// This software is distributed under the terms of the GNU General Public
+// License v3 (GPL Version 3), copied verbatim in the file "COPYING".
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -117,11 +118,11 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
   int nCutSteps = 0;
 
   int oldTrackID = -1; // to notice when a track changes
-  
+
   // loop over all steps in an event
   for (const auto& step : *steps) {
 
-    
+
     // prepare for PDG ids and volume names
     mAnalysisManager->getLookupPDG(step.trackID, pdgId);
     mAnalysisManager->getLookupVolName(step.volId, volName);
@@ -147,7 +148,7 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
       steptree->Fill();
     }
 
-    auto pdgparticle = pdgdatabase->GetParticle(pdgId);    
+    auto pdgparticle = pdgdatabase->GetParticle(pdgId);
     std::string pdgasstring(pdgparticle? pdgparticle->GetName() : std::to_string(pdgId));
 
     if (newtrack) {
@@ -165,7 +166,7 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
       histOriginPerMod->Fill(originModName.c_str(), 1);
       histOriginPerVol->Fill(originVolName.c_str(), 1);
     }
-    
+
     // record number of steps per module
     histNStepsPerMod->Fill(modName.c_str(), 1);
     // record number of steps per volume
@@ -199,7 +200,7 @@ void SimpleStepAnalysis::finalize()
   histTrackPDGSpectrumSorted->SetName("trackPDGSpectrumSorted");
   histTrackPDGSpectrumSorted->LabelsOption(">", "X");
   histTrackPDGSpectrumSorted->SetBins(10,0,10);
-  
+
   // sortit
   // histNStepsPerVolSorted->LabelsOption(">", "X");
 
