@@ -1,0 +1,38 @@
+name: Clang format
+
+on: [pull_request]
+
+jobs:
+  clang-format:
+    # We need at least 20.04 to install clang-format-11.
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Install prerequisites
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt update -y
+          sudo apt install -y clang-format-11
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-11 100
+          sudo update-alternatives --install /usr/bin/git-clang-format git-clang-format /usr/bin/git-clang-format-11 100
+      - name: Run clang-foramt on changed files
+        run: |
+          set -x
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          git fetch origin pull/${{ github.event.pull_request.number }}/head:${{ github.event.pull_request.head.ref }}
+          BASE_COMMIT=$(git rev-parse ${{ github.event.pull_request.base.sha }})
+          COMMIT_FILES=$(git diff --diff-filter=d --name-only ${BASE_COMMIT} | grep -E -- '\.cxx|\.h' | grep -i -v LinkDef) || true ;# avoid failures if nothing is greped
+          [ "X$COMMIT_FILES" = X ] && { echo "No files to check" ; exit 0; }
+          RESULT_OUTPUT=$(git-clang-format --commit ${BASE_COMMIT} --diff ${COMMIT_FILES})
+          if [ "$RESULT_OUTPUT" == "no modified files to format" ] || [ "$RESULT_OUTPUT" == "clang-format did not modify any files" ]; then
+            echo "clang-format passed."
+            exit 0
+          else
+            git-clang-format --commit $BASE_COMMIT --diff
+            echo "$RESULT_OUTPUT"
+            echo "clang-format failed."
+            exit 1
+          fi

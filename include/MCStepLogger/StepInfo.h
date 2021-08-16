@@ -57,14 +57,14 @@ struct StepLookups {
   std::vector<std::string*> volidtovolname;
   std::vector<std::string*> volidtomodule;
   std::vector<std::string*> volidtomedium;
-  std::vector<bool>         volidtoissensitive; // keep track of which volume is sensitive
+  std::vector<bool> volidtoissensitive; // keep track of which volume is sensitive
   std::vector<int> tracktopdg;
   std::vector<int> tracktoparent; // when parent is -1 we mean primary
   std::vector<int> stepcounterpertrack;
 
-  std::vector<int> trackorigin;      // the volumeID where the track originates
-  std::vector<float> tracktoenergy;  // mapping of trackID to the track energy
-  std::vector<bool> crossedboundary; // if track every crossed a geometry boundary
+  std::vector<int> trackorigin;        // the volumeID where the track originates
+  std::vector<float> tracktoenergy;    // mapping of trackID to the track energy
+  std::vector<bool> crossedboundary;   // if track every crossed a geometry boundary
   std::vector<bool> producedsecondary; // if track ever produced a secondary
 
   void insertVolName(int index, std::string const& s) { insertValueAt(index, s, volidtovolname); }
@@ -89,34 +89,38 @@ struct StepLookups {
     tracktopdg[trackindex] = pdg;
   }
 
-  void incStepCount(int trackindex) {
+  void incStepCount(int trackindex)
+  {
     if (trackindex >= stepcounterpertrack.size()) {
       stepcounterpertrack.resize(trackindex + 1, 0);
     }
     stepcounterpertrack[trackindex]++;
   }
 
-  void setProducedSecondary(int trackindex, bool b) {
+  void setProducedSecondary(int trackindex, bool b)
+  {
     if (trackindex >= producedsecondary.size()) {
       producedsecondary.resize(trackindex + 1, false);
     }
-    producedsecondary[trackindex]=b;
+    producedsecondary[trackindex] = b;
   }
 
-  void setCrossedBoundary(int trackindex, bool b) {
+  void setCrossedBoundary(int trackindex, bool b)
+  {
     if (trackindex >= crossedboundary.size()) {
       crossedboundary.resize(trackindex + 1, false);
     }
-    crossedboundary[trackindex]=b;
+    crossedboundary[trackindex] = b;
   }
 
-  void setTrackEnergy(int trackindex, float e) {
+  void setTrackEnergy(int trackindex, float e)
+  {
     if (trackindex >= tracktoenergy.size()) {
       tracktoenergy.resize(trackindex + 1, -1.);
     }
     // only take the starting energy
-    if (tracktoenergy[trackindex]==-1.) {
-      tracktoenergy[trackindex]=e;
+    if (tracktoenergy[trackindex] == -1.) {
+      tracktoenergy[trackindex] = e;
     }
   }
 
@@ -143,7 +147,8 @@ struct StepLookups {
     tracktoparent[trackindex] = parent;
   }
 
-  void clearTrackLookups() {
+  void clearTrackLookups()
+  {
     tracktoparent.clear();
     producedsecondary.clear();
     crossedboundary.clear();
@@ -192,13 +197,13 @@ struct StepInfo {
   float step = 0.;
   float maxstep = 0.;
   int nsecondaries = 0;
-  int prodprocess = -1;   // prod process of current track
-  int nprocessesactive = 0;          // number of active processes
-  bool stopped = false;              // if track was stopped during last step
-  bool entered = false;              // if track entered volume during last step
-  bool exited = false;               // if track exited volume during last step
-  bool newtrack = false;             // if track is new
-  bool insensitiveRegion = false;    // whether step done in sensitive region
+  int prodprocess = -1;           // prod process of current track
+  int nprocessesactive = 0;       // number of active processes
+  bool stopped = false;           // if track was stopped during last step
+  bool entered = false;           // if track entered volume during last step
+  bool exited = false;            // if track exited volume during last step
+  bool newtrack = false;          // if track is new
+  bool insensitiveRegion = false; // whether step done in sensitive region
 
   const char* getProdProcessAsString() const;
 
@@ -227,5 +232,5 @@ struct MagCallInfo {
   static int stepcounter;
   ClassDefNV(MagCallInfo, 1);
 };
-}
+} // namespace o2
 #endif

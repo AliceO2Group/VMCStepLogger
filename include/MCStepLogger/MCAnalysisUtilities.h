@@ -32,6 +32,6 @@ void scalePerBin(TH1* histo, const std::vector<float>& scaleVector);
 /// for histograms with alphanumeric labels scale bin with name "name" by scaleMap["name"]
 void scalePerBin(TH1* histo, const std::unordered_map<std::string, float>& scaleMap);
 } // namespace utilities
-} // namespace mstepanalysis
-} // o2
+} // namespace mcstepanalysis
+} // namespace o2
 #endif /* MCANALYSIS_UTILITIES_H_ */

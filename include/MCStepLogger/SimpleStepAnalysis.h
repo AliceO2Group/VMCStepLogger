@@ -85,8 +85,8 @@ class SimpleStepAnalysis : public MCAnalysis
   TH2D* histXY;
 
   // keep steps (under cutting for instance)
-  TTree *steptree;
-  TFile *stepfile;
+  TTree* steptree;
+  TFile* stepfile;
 
   // pointing to a user cut function
   cut_function_type* mUserCutFunction = nullptr; //!
