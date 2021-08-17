@@ -1,10 +1,12 @@
-# Important note
+# MCStepLogger
 
-This repository is extracting the MCStepLogger from https://github.com/AliceO2Group/AliceO2/tree/dev/Utilities/MCStepLogger making it ready to be an O2-independent tool (which is in principle already is). Only dependencies are `ROOT` and `Boost`.
+This package can be used to log and analyse the single steps computed by detector simulation engines built upon the [Virtual Monte Carlo (VMC)](https://vmc-project.github.io/).
 
 ## Build and install
 
-`cmake` (version >= 3.11.0) is used to build this project. Please install [ROOT](https://github.com/root-project/root) (tested with version 6.12.06) and [Boost](https://www.boost.org/) (tested with version 1.59.0). After that just set the environment variables `ROOTSYS` and `BOOST_ROOT` to the root directories of the `ROOT` and `Boost` installations, respectively. Finally, do
+The only dependencies are `ROOT` and `Boost`.
+
+`cmake` (version >= 3.11.0) is used to build this project. Please install [ROOT](https://github.com/root-project/root) and [Boost](https://www.boost.org/). For both the versions that shoult allow the built can be derived from [alidist](https://github.com/alisw/alidist). After that just set the environment variables `ROOTSYS` and `BOOST_ROOT` to the root directories of the `ROOT` and `Boost` installations, respectively. Finally, do
 ```bash
 mkdir -p $BUILD_DIR $INSTALL_DIR; cd $BUILD_DIR
 cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR $MCSTEPLOGGER_SOURCE_DIR
@@ -15,22 +17,38 @@ That leaves you with
 * headers at`$INSTALL_DIR/include`
 * the executable `$INSTALL_DIR/bin/mcStepAnalysis` (usage explained [below](#mcsteploganalysis))
 
-Note that some of the instructions below especially apply to the usage together with the ALICE O2 software framework.
+**Note** that some of the instructions below especially apply to the usage together with the ALICE O2 software framework.
+**Note** also that the interception only works in case your application derives from or is equal to [FairMCApplication](https://github.com/FairRootGroup/FairRoot/blob/master/base/sim/FairMCApplication.h) or [AliMC](https://github.com/alisw/AliRoot/blob/master/STEER/STEER/AliMC.h).
 
-## MCStepLogger
+### Use `aliBuild`
+
+`aliBuild` can be used to setup the package. To obtain `aliBuild` and related packages, please follow https://alice-doc.github.io/alice-analysis-tutorial/building/. To build from the `master` branch, do
+
+```bash
+aliBuild init MCStepLogger@master --defaults o2
+aliBuild build MCStepLogger --defaults o2
+```
+
+After that, enter the environment with
+```bash
+alienv enter MCStepLogger/latest
+```
+and you are good to go.
+
+## MCStepLogger - usage and info
 
 3 libraries are built
 
-1. MCStepLoggerCore
-2. MCStepLoggerIntercept
-3. MCStepLoggerAnalysis
+1. `libMCStepLoggerCore.so`
+2. `libMCStepLoggerIntercept.so`
+3. `libMCStepLoggerAnalysis.so`
 
-The first one contains core classes like `o2::StepInfo` to be used in depending packages and the same is true for the third one which contains analysis specific code.
+The first one contains core functionality to be used in depending packages and the same is true for the third one which contains analysis specific code.
 
-The second library `MCStepLoggerIntercept` allows for detailed debug information where stepping can be directed to standard output using the `LD_PRELOAD` env variable, which "injects" this library (which intercepts some calls) in the executable that follows in the command line.
+The second allows for detailed debug information where stepping can be directed to standard output using the `LD_PRELOAD` env variable, which "injects" this library (which intercepts some calls) in the executable that follows in the command line.
 
 ```bash
-LD_PRELOAD=path_to/libMCStepLoggerIntercept.so o2sim -m MCH -n 10
+LD_PRELOAD=path_to/libMCStepLoggerIntercept.so o2-sim-serial -m MCH -n 10
 ```
 
 
@@ -53,7 +71,7 @@ Default name is `MCStepLoggerOutput.root` (and can be changed
 by setting the `MCSTEPLOG_OUTFILE` env variable).
 
 ```bash
-MCSTEPLOG_TTREE=1 LD_PRELOAD=path_to/libMCStepLogger.so o2sim ..
+MCSTEPLOG_TTREE=1 LD_PRELOAD=path_to/libMCStepLogger.so o2-sim-serial ..
 ```
 
 Finally the logger can use a map file to give names to some logical grouping of volumes. For instance to map all sensitive volumes from a given detector `DET` to a common label `DET`. That label can then be used to query information about the detector steps "as a whole" when using the `StepLoggerTree` output tree.
@@ -71,7 +89,7 @@ downroundedPCB MCH
 uproundedPCB MCH
 cave TheCavern
 
-> MCSTEPLOG_VOLMAPFILE=path_to_/volmapfile.dat MCSTEPLOG_TTREE=1 LD_PRELOAD=path_to/libMCStepLogger.so o2sim ..
+> MCSTEPLOG_VOLMAPFILE=path_to_/volmapfile.dat MCSTEPLOG_TTREE=1 LD_PRELOAD=path_to/libMCStepLogger.so o2-sim-serial ..
 
 > root -b MCStepLoggerOutput.root
 root[0] StepLoggerTree->Draw( "Lookups.volidtomodule.data()");
@@ -80,8 +98,8 @@ root[0] StepLoggerTree->Draw( "Lookups.volidtomodule.data()");
 Note also the existence of the `LD_DEBUG` variable which can be used to see in details what libraries are loaded (and much more if needed...).
 
 ```bash
-LD_DEBUG=libs o2sim
-LD_DEBUG=help o2sim
+LD_DEBUG=libs o2-sim-serial
+LD_DEBUG=help o2-sim-serial
 ```
 
 ## Special case on macOS
@@ -89,7 +107,7 @@ LD_DEBUG=help o2sim
 `LD_PRELOAD` must be replaced by `DYLD_INSERT_LIBRARIES`, e.g. :
 
 ```bash
-DYLD_INSERT_LIBRARIES=/Users/laurent/alice/sw/osx_x86-64/O2/latest-clion-o2/lib/libMCStepLogger.dylib MCSTEPLOG_TTREE=1 MCSTEPLOG_OUTFILE=toto.root o2sim -m MCH -g mugen -n 1
+DYLD_INSERT_LIBRARIES=/Users/laurent/alice/sw/osx_x86-64/O2/latest-clion-o2/lib/libMCStepLogger.dylib MCSTEPLOG_TTREE=1 MCSTEPLOG_OUTFILE=toto.root o2-sim-serial -m MCH -g mugen -n 1
 ```
 
 `LD_DEBUG=libs` must be replaced by `DYLD_PRINT_LIBRARIES=1`
@@ -97,7 +115,7 @@ DYLD_INSERT_LIBRARIES=/Users/laurent/alice/sw/osx_x86-64/O2/latest-clion-o2/lib/
 `LD_DEBUG=statistics` must be replaced by `DYLD_PRINT_STATISTICS=1`
 
 
-## MCStepLogAnalysis
+## Step analysis
 
 Information collected and stored in `MCStepLoggerOutput.root` can be further investigated using the excutable `mcStepAnalysis`. This executable is independent of the simulation itself and produces therefore no overhead when running a simulation. 2 commands are so far available (`analyze`, `checkFile`) including useful help message when typing
 ```bash
