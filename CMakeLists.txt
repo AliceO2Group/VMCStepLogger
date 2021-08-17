@@ -22,6 +22,10 @@ set(CMAKE_MODULE_PATH
     ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake)
 
+option(MCStepLogger_BUILD_TESTS "Control whether tests are built" OFF)
+
+include(CTest)
+
 # Install directories
 SET(INSTALL_BIN_DIR ${CMAKE_INSTALL_PREFIX}/bin)
 SET(INSTALL_MACRO_DIR ${CMAKE_INSTALL_PREFIX}/macro)
@@ -224,3 +228,12 @@ configure_file(
 install(FILES
     "${PROJECT_BINARY_DIR}/MCStepLoggerConfig.cmake"
     DESTINATION ${INSTALL_CMAKE_DIR})
+
+###############
+# Build tests #
+###############
+if(NOT MCStepLogger_BUILD_TESTS)
+  message(WARNING "No tests are built.")
+else()
+  add_subdirectory(test)
+endif(NOT MCStepLogger_BUILD_TESTS)
