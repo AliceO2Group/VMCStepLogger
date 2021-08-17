@@ -29,7 +29,7 @@ const std::string defaultMCAnalysisName = "defaultMCAnalysisName";
 const std::string defaultLabel = "defaultLabel";
 const std::string defaultStepLoggerTTreeName = "StepLoggerTree";
 
-} // end namespace metainfonames
+} // namespace defaults
 
 struct MCAnalysisMetaInfo {
   MCAnalysisMetaInfo()
