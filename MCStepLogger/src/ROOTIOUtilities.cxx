@@ -16,10 +16,9 @@ ClassImp(o2::mcstepanalysis::ROOTIOUtilities);
 using namespace o2::mcstepanalysis;
 
 const std::unordered_map<ETFileMode, const char*> ROOTIOUtilities::mTFileModesNames = {
-  { ETFileMode::kREAD, "READ" },
-  { ETFileMode::kUPDATE, "UPDATE" },
-  { ETFileMode::kRECREATE, "RECREATE" }
-};
+  {ETFileMode::kREAD, "READ"},
+  {ETFileMode::kUPDATE, "UPDATE"},
+  {ETFileMode::kRECREATE, "RECREATE"}};
 
 ROOTIOUtilities::ROOTIOUtilities(const std::string& path, ETFileMode mode)
   : mFilepath(path), mTFile(nullptr), mTFileOpened(false), mTFileMode(mode), mTDirectory(nullptr), mTDirectoryName(""), mObjectList(nullptr), mTDirectoryEntries(0), mTDirectoryCounter(0), mTTree(nullptr), mTTreeOpened(false), mTTreeCounter(0), mTTreeEntries(0)

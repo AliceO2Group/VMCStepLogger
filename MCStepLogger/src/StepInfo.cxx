@@ -70,8 +70,7 @@ StepInfo::StepInfo(TVirtualMC* mc)
       auto iter = volnametomodulemap->find(volname);
       if (iter != volnametomodulemap->end()) {
         lookupstructures.insertModuleName(volId, iter->second);
-      }
-      else {
+      } else {
         // std::cout << "VOL NOT FOUND .. GO UP UNTIL WE FIND A KNOWN VOLUME NAME " << volname << "\n";
         // trying to look upward
         int up = 1;
@@ -107,7 +106,8 @@ StepInfo::StepInfo(TVirtualMC* mc)
   z = zd;
   step = mc->TrackStep();
   maxstep = mc->MaxStep();
-  E = mc->Etot();
+  mc->TrackMomentum(px, py, pz, E);
+  edep = mc->Edep();
   auto now = std::chrono::high_resolution_clock::now();
   // cputimestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(now - starttime).count();
   nsecondaries = mc->NSecondaries();
@@ -137,7 +137,8 @@ StepInfo::StepInfo(TVirtualMC* mc)
   newtrack = mc->IsNewTrack();
 }
 
-const char* StepInfo::getProdProcessAsString() const {
+const char* StepInfo::getProdProcessAsString() const
+{
   return TMCProcessName[prodprocess];
 }
 
@@ -148,7 +149,7 @@ std::vector<std::string*> StepInfo::volidtomodulevector;
 StepLookups StepInfo::lookupstructures;
 
 MagCallInfo::MagCallInfo(TVirtualMC* mc, float ax, float ay, float az, float aBx, float aBy, float aBz)
-  : x{ ax }, y{ ay }, z{ az }, B{ std::sqrt(aBx * aBx + aBy * aBy + aBz * aBz) }
+  : x{ax}, y{ay}, z{az}, B{std::sqrt(aBx * aBx + aBy * aBy + aBz * aBz)}
 {
   stepcounter++;
   id = stepcounter;
@@ -181,7 +182,7 @@ bool StepLookups::initSensitiveVolLookup(const std::string& filename)
       std::string token;
       // split the line into key + value
       int counter = 0;
-      std::string keyvalue[2] = { "NULL", "NULL" };
+      std::string keyvalue[2] = {"NULL", "NULL"};
       while (counter < 2 && std::getline(ss, token, ':')) {
         if (!token.empty()) {
           keyvalue[counter] = token;

@@ -66,32 +66,32 @@ void SimpleStepAnalysis::initialize()
   // thanks to discussions with Philippe Canal, Fermilab
   auto cutcondition = getenv("MCSTEPCUT");
   if (cutcondition) {
-    std::string expr = "#include \"StepInfo.h\"\n #include <cmath>\n bool user_cut(const o2::StepInfo &step, \
+    std::string expr =
+      "#include \"StepInfo.h\"\n #include <cmath>\n bool user_cut(const o2::StepInfo &step, \
                         const std::string &volname,                                       \
                         const std::string &modname,                                       \
                         int pdg, o2::StepLookups* lookup) {";
-    expr+=std::string(cutcondition);
-    expr+=std::string("}");
+    expr += std::string(cutcondition);
+    expr += std::string("}");
     auto installpath = getenv("MCSTEPLOGGER_ROOT");
     if (installpath) {
       auto includepath = std::string(installpath) + std::string("/include/MCStepLogger");
       std::cout << "Using include path " << includepath << "\n";
       gInterpreter->AddIncludePath(includepath.c_str());
-    }
-    else {
-      std::cerr << "Could not set path to Steplogger headers; Just-in-time compilation might fail" << "\n";
+    } else {
+      std::cerr << "Could not set path to Steplogger headers; Just-in-time compilation might fail"
+                << "\n";
     }
     gInterpreter->Declare(expr.c_str());
-    TInterpreterValue *v = gInterpreter->CreateTemporary();
+    TInterpreterValue* v = gInterpreter->CreateTemporary();
     // std::unique_ptr<TInterpreterValue> v = gInterpreter->MakeInterpreterValue();
     gInterpreter->Evaluate("user_cut", *v);
     mUserCutFunction = (cut_function_type*)v->GetValAddr();
   }
 
-  if(getenv("KEEPSTEPS")) {
+  if (getenv("KEEPSTEPS")) {
     steptree = new TTree("Steps", "Steps");
   }
-
 }
 
 void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const std::vector<MagCallInfo>* const magCalls)
@@ -122,7 +122,6 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
   // loop over all steps in an event
   for (const auto& step : *steps) {
 
-
     // prepare for PDG ids and volume names
     mAnalysisManager->getLookupPDG(step.trackID, pdgId);
     mAnalysisManager->getLookupVolName(step.volId, volName);
@@ -149,12 +148,12 @@ void SimpleStepAnalysis::analyze(const std::vector<StepInfo>* const steps, const
     }
 
     auto pdgparticle = pdgdatabase->GetParticle(pdgId);
-    std::string pdgasstring(pdgparticle? pdgparticle->GetName() : std::to_string(pdgId));
+    std::string pdgasstring(pdgparticle ? pdgparticle->GetName() : std::to_string(pdgId));
 
     if (newtrack) {
       histTrackEnergySpectrum->Fill(log10f(step.E));
-      histTrackPDGSpectrum->Fill(pdgasstring.c_str(),1);
-      histTrackProdProcess->Fill(step.getProdProcessAsString(),1);
+      histTrackPDGSpectrum->Fill(pdgasstring.c_str(), 1);
+      histTrackProdProcess->Fill(step.getProdProcessAsString(), 1);
 
       auto originid = mAnalysisManager->getLookups()->trackorigin[step.trackID];
       std::string originVolName;
@@ -199,24 +198,22 @@ void SimpleStepAnalysis::finalize()
   *histTrackPDGSpectrumSorted = *histTrackPDGSpectrum;
   histTrackPDGSpectrumSorted->SetName("trackPDGSpectrumSorted");
   histTrackPDGSpectrumSorted->LabelsOption(">", "X");
-  histTrackPDGSpectrumSorted->SetBins(10,0,10);
+  histTrackPDGSpectrumSorted->SetBins(10, 0, 10);
 
   // sortit
   // histNStepsPerVolSorted->LabelsOption(">", "X");
 
   histNStepsPerVolSorted->SetBins(30, 0, 30);
   histNStepsPerMod->LabelsOption(">", "X");
-  histNStepsPerMod->SetBins(30,0,30);
+  histNStepsPerMod->SetBins(30, 0, 30);
 
   histNSecondariesPerMod->LabelsOption(">", "X");
   histNSecondariesPerVol->LabelsOption(">", "X");
-  histNSecondariesPerVol->SetBins(30,0,30);
+  histNSecondariesPerVol->SetBins(30, 0, 30);
 
-
-  if(getenv("KEEPSTEPS")) {
+  if (getenv("KEEPSTEPS")) {
     std::cout << "Writing step tree\n";
     steptree->Write();
     stepfile->Close();
   }
-
 }

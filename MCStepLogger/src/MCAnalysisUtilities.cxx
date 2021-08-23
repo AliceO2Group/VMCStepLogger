@@ -60,5 +60,5 @@ void scalePerBin(TH1* histo, const std::unordered_map<std::string, float>& scale
 }
 
 } // namespace utilities
-} // namespace mstepanalysis
-} // o2
+} // namespace mcstepanalysis
+} // namespace o2

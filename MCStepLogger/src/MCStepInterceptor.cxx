@@ -44,7 +44,7 @@ namespace field
 {
 DECLARE_INTERCEPT_FIELD_SYMBOLS(MagneticField);
 }
-}
+} // namespace o2
 DECLARE_INTERCEPT_FIELD_SYMBOLS(AliMagF);
 
 extern "C" void performLogging(TVirtualMCApplication*);
@@ -104,6 +104,6 @@ namespace field
 {
 INTERCEPT_FIELD(MagneticField, "libO2Field", "_ZN2o25field13MagneticField5FieldEPKdPd");
 }
-}
+} // namespace o2
 // for AliRoot
 INTERCEPT_FIELD(AliMagF, "libSTEERBase", "_ZN7AliMagF5FieldEPKdPd")

@@ -85,7 +85,7 @@ void initVolumeMap()
       std::string token;
       // split the line into key + value
       int counter = 0;
-      std::string keyvalue[2] = { "NULL", "NULL" };
+      std::string keyvalue[2] = {"NULL", "NULL"};
       while (counter < 2 && std::getline(ss, token, ':')) {
         if (!token.empty()) {
           keyvalue[counter] = token;
@@ -93,7 +93,7 @@ void initVolumeMap()
         }
       }
       // put into map
-      volmap->insert({ keyvalue[0], keyvalue[1] });
+      volmap->insert({keyvalue[0], keyvalue[1]});
     }
     ifs.close();
     StepInfo::volnametomodulemap = volmap;
@@ -335,7 +335,7 @@ class StepLogger
 // pointers to dissallow construction at each library load
 StepLogger* logger;
 FieldLogger* fieldlogger;
-} // end namespace
+} // namespace o2
 
 // a helper template kernel describing generically the redispatching prodecure
 template <typename Object /* the original object type */, typename MethodType /* member function type */,

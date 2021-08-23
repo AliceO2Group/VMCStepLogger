@@ -194,6 +194,10 @@ struct StepInfo {
   float y = 0.;
   float z = 0.;
   float E = 0.;
+  float px = 0.;
+  float py = 0.;
+  float pz = 0.;
+  float edep = 0.;
   float step = 0.;
   float maxstep = 0.;
   int nsecondaries = 0;
@@ -215,7 +219,7 @@ struct StepInfo {
   static std::vector<std::string*> volidtomodulevector;
 
   static StepLookups lookupstructures;
-  ClassDefNV(StepInfo, 2);
+  ClassDefNV(StepInfo, 3);
 };
 
 struct MagCallInfo {
