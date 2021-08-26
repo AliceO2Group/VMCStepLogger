@@ -23,7 +23,7 @@ set(CMAKE_MODULE_PATH
     ${CMAKE_SOURCE_DIR}/cmake)
 
 option(MCStepLogger_BUILD_TMCReplay "Build TMCReplay engine" ON)
-option(MCStepLogger_BUILD_TESTS "Control whether tests are built" ON)
+option(MCStepLogger_BUILD_TESTS "Control whether tests are built" OFF)
 
 include(CTest)
 
