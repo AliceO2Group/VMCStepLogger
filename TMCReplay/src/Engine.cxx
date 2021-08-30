@@ -27,6 +27,7 @@
 #include <TGeoHype.h>
 #include <TGeoArb8.h>
 
+#include "MCStepLogger/ROOTIOUtilities.h"
 #include "TMCReplay/Engine.h"
 
 ClassImp(tmcreplay::Engine);
@@ -34,8 +35,10 @@ ClassImp(tmcreplay::Engine);
 namespace vmcsl = o2::mcstepanalysis;
 using namespace tmcreplay;
 
+Engine::Engine() : Engine("", "") {}
+
 Engine::Engine(const std::string& filename, const std::string& treename)
-  : TVirtualMC{"ReplayEngine", "ReplayEngine", kTRUE}, fIsRootGeometrySupported{kTRUE}, fIsRunStopped{kFALSE}, fIsEventStopped{kFALSE}, fIsTrackStopped{kFALSE}, fFilename{filename}, fTreename{treename}, fCurrentStepInfo{nullptr}, fCurrentMagCallInfo{nullptr}, fCurrentLookups{nullptr}, fCurrentEvent{0}, fCurrentStep{nullptr}, fCurrentTrackLength{0.}, fProcessesGlobal(physics::namesProcesses.size(), -1), fCutsGlobal(physics::namesCuts.size(), -1.), fcurrentProcesses{nullptr}, fcurrentCuts{nullptr}, fGeoManager{nullptr}
+  : TVirtualMC{"ReplayEngine", "ReplayEngine", kTRUE}, fIsRootGeometrySupported{kTRUE}, fIsRunStopped{kFALSE}, fIsEventStopped{kFALSE}, fIsTrackStopped{kFALSE}, fFilename{filename}, fTreename{treename}, fCurrentStepInfo{nullptr}, fCurrentMagCallInfo{nullptr}, fCurrentLookups{nullptr}, fCurrentEvent{0}, fCurrentStep{nullptr}, fCurrentTrackLength{0.}, fProcessesGlobal(physics::namesProcesses.size(), -1), fCutsGlobal(physics::namesCuts.size(), -1.), fcurrentProcesses{nullptr}, fcurrentCuts{nullptr}, fGeoManager{nullptr}, fMaterialCounter{0}, fMediumCounter{0}
 {
 }
 
@@ -51,11 +54,197 @@ Engine::~Engine()
 
 void Engine::Init()
 {
-  fApplication->ConstructGeometry();
-  fApplication->MisalignGeometry();
-  fApplication->InitGeometry();
+  std::cout << "#GEOMANAGER" << gGeoManager << std::endl;
+  fApplication->AddParticles();
+  fApplication->AddIons();
   // gGeoManager must be valid pointer now
   fGeoManager = gGeoManager;
+  fApplication->ConstructGeometry();
+  std::cout << "#GEOMANAGER" << gGeoManager << std::endl;
+  fApplication->ConstructOpGeometry();
+  fApplication->ConstructSensitiveDetectors();
+  fApplication->MisalignGeometry();
+  fApplication->InitGeometry();
+}
+
+void Engine::adaptToTGeoName(const char* nameIn, char* nameOut) const
+{
+  auto l = strlen(nameIn);
+  if (l >= 79) {
+    l = 79;
+  }
+  for (int i = 0; i < l; i++) {
+    nameOut[i] = nameIn[i];
+  }
+  nameOut[l] = 0;
+}
+
+Double_t* Engine::makeDoubleArray(Float_t* arrIn, int np) const
+{
+  Double_t* arrOut = np > 0 ? new Double_t[np] : nullptr;
+  for (int i = 0; i < np; i++) {
+    arrOut[i] = arrIn[i];
+  }
+  return arrOut;
+}
+
+void Engine::Material(Int_t& kmat, const char* name, Double_t a, Double_t z, Double_t dens, Double_t radl, Double_t absl, Float_t* buf, Int_t nwbuf)
+{
+  Double_t* bufDouble = nullptr;
+  Material(kmat, name, a, z, dens, radl, absl, bufDouble, -1);
+}
+
+void Engine::Material(Int_t& kmat, const char* name, Double_t a, Double_t z, Double_t dens, Double_t radl, Double_t absl, Double_t* buf, Int_t nwbuf)
+{
+  kmat = fMaterialCounter++;
+  fGeoManager->Material(name, a, z, dens, kmat, radl, absl);
+}
+
+void Engine::Mixture(Int_t& kmat, const char* name, Double_t* a, Double_t* z, Double_t dens, Int_t nlmat, Double_t* wmat)
+{
+  // TODO This is for now using ROOT's TGeoManager methods to do that.
+  // IN PRINCIPLE, we are not making any use of the properties internally anyway,
+  // but we have to construct something, since the simulation might ask for GetMaterial/GetMedium
+  if (nlmat < 0) {
+    nlmat = -nlmat;
+    Double_t amol = 0;
+    Int_t i;
+    for (i = 0; i < nlmat; i++) {
+      amol += a[i] * wmat[i];
+    }
+    for (i = 0; i < nlmat; i++) {
+      wmat[i] *= a[i] / amol;
+    }
+  }
+  kmat = fMaterialCounter++;
+  fGeoManager->Mixture(name, a, z, dens, nlmat, wmat, kmat);
+}
+
+void Engine::Mixture(Int_t& kmat, const char* name, Float_t* a, Float_t* z, Double_t dens, Int_t nlmat, Float_t* wmat)
+{
+  // TODO This is for now using ROOT's TGeoManager methods to do that.
+  // IN PRINCIPLE, we are not making any use of the properties internally anyway,
+  // but we have to construct something, since the simulation might ask for GetMaterial/GetMedium
+  auto aDouble = makeDoubleArray(a, TMath::Abs(nlmat));
+  auto zDouble = makeDoubleArray(z, TMath::Abs(nlmat));
+  auto wmatDouble = makeDoubleArray(wmat, TMath::Abs(nlmat));
+  Mixture(kmat, name, aDouble, zDouble, dens, nlmat, wmatDouble);
+  for (int i = 0; i < TMath::Abs(nlmat); i++) {
+    a[i] = aDouble[i];
+    z[i] = zDouble[i];
+    wmat[i] = wmatDouble[i];
+  }
+  delete[] aDouble;
+  delete[] zDouble;
+  delete[] wmatDouble;
+}
+
+void Engine::Medium(Int_t& kmed, const char* name, Int_t nmat, Int_t isvol, Int_t ifield, Double_t fieldm, Double_t tmaxfd, Double_t stemax, Double_t deemax, Double_t epsil, Double_t stmin, Float_t* ubuf, Int_t nbuf)
+{
+  kmed = fMediumCounter++;
+  fGeoManager->Medium(name, kmed, nmat, isvol, ifield, fieldm, tmaxfd, stemax, deemax, epsil, stmin);
+}
+
+void Engine::Medium(Int_t& kmed, const char* name, Int_t nmat, Int_t isvol, Int_t ifield, Double_t fieldm, Double_t tmaxfd, Double_t stemax, Double_t deemax, Double_t epsil, Double_t stmin, Double_t* ubuf, Int_t nbuf)
+{
+  kmed = fMediumCounter++;
+  fGeoManager->Medium(name, kmed, nmat, isvol, ifield, fieldm, tmaxfd, stemax, deemax, epsil, stmin);
+}
+
+Int_t Engine::Gsvolu(const char* name, const char* shape, Int_t nmed, Double_t* upar, Int_t np)
+{
+  char nameOut[80];
+  adaptToTGeoName(name, nameOut);
+  char shapeOut[5];
+  adaptToTGeoName(shape, shapeOut);
+  auto vol = fGeoManager->Volume(nameOut, shapeOut, nmed, upar, np);
+  if (!vol) {
+    ::Fatal("Gsvolu", "Could not construct volume %s", name);
+    return -1;
+  }
+  return vol->GetNumber();
+}
+
+Int_t Engine::Gsvolu(const char* name, const char* shape, Int_t nmed, Float_t* upar, Int_t np)
+{
+  auto uparDouble = makeDoubleArray(upar, np);
+  auto id = Gsvolu(name, shape, nmed, uparDouble, np);
+  delete[] uparDouble;
+  return id;
+}
+
+void Engine::Gsdvn(const char* name, const char* mother, Int_t ndiv, Int_t iaxis)
+{
+  char nameOut[80];
+  char nameMotherOut[80];
+  adaptToTGeoName(name, nameOut);
+  adaptToTGeoName(mother, nameMotherOut);
+  fGeoManager->Division(nameOut, nameMotherOut, iaxis, ndiv, 0, 0, 0, "n");
+}
+
+void Engine::Gsdvn2(const char* name, const char* mother, Int_t ndiv, Int_t iaxis, Double_t c0i, Int_t numed)
+{
+  char nameOut[80];
+  char nameMotherOut[80];
+  adaptToTGeoName(name, nameOut);
+  adaptToTGeoName(mother, nameMotherOut);
+  fGeoManager->Division(nameOut, nameMotherOut, iaxis, ndiv, c0i, 0, numed, "nx");
+}
+
+void Engine::Gsdvt(const char* name, const char* mother, Double_t step, Int_t iaxis, Int_t numed, Int_t ndvmx)
+{
+  char nameOut[80];
+  char nameMotherOut[80];
+  adaptToTGeoName(name, nameOut);
+  adaptToTGeoName(mother, nameMotherOut);
+  fGeoManager->Division(nameOut, nameMotherOut, iaxis, 0, 0, step, numed, "s");
+}
+
+void Engine::Gsdvt2(const char* name, const char* mother, Double_t step, Int_t iaxis, Double_t c0, Int_t numed, Int_t ndvmx)
+{
+  char nameOut[80];
+  char nameMotherOut[80];
+  adaptToTGeoName(name, nameOut);
+  adaptToTGeoName(mother, nameMotherOut);
+  fGeoManager->Division(nameOut, nameMotherOut, iaxis, 0, c0, step, numed, "sx");
+}
+
+void Engine::Gspos(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly)
+{
+  char nameOut[80];
+  char nameMotherOut[80];
+  adaptToTGeoName(name, nameOut);
+  adaptToTGeoName(mother, nameMotherOut);
+  TString onlyString{konly};
+  onlyString.ToLower();
+  bool isOnly = onlyString.Contains("only") ? true : false;
+  Double_t* upar = nullptr;
+  fGeoManager->Node(nameOut, nr, nameMotherOut, x, y, z, irot, isOnly, upar);
+}
+
+void Engine::Gsposp(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly, Double_t* upar, Int_t np)
+{
+  char nameOut[80];
+  char nameMotherOut[80];
+  adaptToTGeoName(name, nameOut);
+  adaptToTGeoName(mother, nameMotherOut);
+  TString onlyString{konly};
+  onlyString.ToLower();
+  bool isOnly = onlyString.Contains("only") ? true : false;
+  fGeoManager->Node(nameOut, nr, nameMotherOut, x, y, z, irot, isOnly, upar, np);
+}
+
+void Engine::Gsposp(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly, Float_t* upar, Int_t np)
+{
+  auto uparDouble = makeDoubleArray(upar, np);
+  Gsposp(name, nr, mother, x, y, z, irot, konly, uparDouble, np);
+  delete[] uparDouble;
+}
+
+void Engine::Matrix(Int_t& krot, Double_t thetaX, Double_t phiX, Double_t thetaY, Double_t phiY, Double_t thetaZ, Double_t phiZ)
+{
+  krot = fGeoManager->GetListOfMatrices()->GetEntriesFast();
+  fGeoManager->Matrix(krot, thetaX, phiX, thetaY, phiY, thetaZ, phiZ);
 }
 
 Bool_t Engine::GetTransformation(const TString& volumePath, TGeoHMatrix& matrix)
@@ -317,8 +506,7 @@ Bool_t Engine::GetShape(const TString& volumePath, TString& shapeType, TArrayD& 
   return kFALSE;
 }
 
-Bool_t Engine::GetMaterial(const TString& volumeName, TString& name, Int_t& imat, Double_t& a, Double_t& z, Double_t& density,
-                           Double_t& radl, Double_t& inter, TArrayD& par)
+Bool_t Engine::GetMaterial(const TString& volumeName, TString& name, Int_t& imat, Double_t& a, Double_t& z, Double_t& density, Double_t& radl, Double_t& inter, TArrayD& par)
 {
   auto vol = fGeoManager->GetVolume(volumeName.Data());
   if (!vol) {
@@ -341,9 +529,7 @@ Bool_t Engine::GetMaterial(const TString& volumeName, TString& name, Int_t& imat
   return kTRUE;
 }
 
-Bool_t Engine::GetMedium(const TString& volumeName, TString& name, Int_t& imed, Int_t& nmat, Int_t& isvol, Int_t& ifield,
-                         Double_t& fieldm, Double_t& tmaxfd, Double_t& stemax, Double_t& deemax, Double_t& epsil, Double_t& stmin,
-                         TArrayD& par)
+Bool_t Engine::GetMedium(const TString& volumeName, TString& name, Int_t& imed, Int_t& nmat, Int_t& isvol, Int_t& ifield, Double_t& fieldm, Double_t& tmaxfd, Double_t& stemax, Double_t& deemax, Double_t& epsil, Double_t& stmin, TArrayD& par)
 {
   auto vol = fGeoManager->GetVolume(volumeName.Data());
   if (!vol)
@@ -616,8 +802,7 @@ void Engine::ProcessEvent(Int_t eventId)
     // by default just assign the previous track ID, the stack might then decide to do something else
     userTrackId[step.trackID] = step.trackID;
     if (step.newtrack && fCurrentLookups->tracktoparent[step.trackID] < 0) {
-      fMCStack->PushTrack(0, -1, fCurrentLookups->tracktopdg[step.trackID], -1., -1., -1.,
-                          step.E, step.x, step.y, step.z, -1., -1., -1., -1., TMCProcess(step.prodprocess), userTrackId[step.trackID], 1., -1);
+      fMCStack->PushTrack(0, -1, fCurrentLookups->tracktopdg[step.trackID], -1., -1., -1., step.E, step.x, step.y, step.z, -1., -1., -1., -1., TMCProcess(step.prodprocess), userTrackId[step.trackID], 1., -1);
     }
   }
 
@@ -665,8 +850,7 @@ void Engine::ProcessEvent(Int_t eventId)
         // by default just assign the previous track ID, the stack might then decide to do something else
         // here we need also be careful to set the correct parent comlying with the user stack indexing
         userTrackId[step.trackID] = step.trackID;
-        fMCStack->PushTrack(0, userTrackId[fCurrentLookups->tracktoparent[step.trackID]], fCurrentLookups->tracktopdg[step.trackID], -1., -1., -1.,
-                            step.E, step.x, step.y, step.z, -1., -1., -1., -1., TMCProcess(step.prodprocess), userTrackId[step.trackID], 1., -1);
+        fMCStack->PushTrack(0, userTrackId[fCurrentLookups->tracktoparent[step.trackID]], fCurrentLookups->tracktopdg[step.trackID], -1., -1., -1., step.E, step.x, step.y, step.z, -1., -1., -1., -1., TMCProcess(step.prodprocess), userTrackId[step.trackID], 1., -1);
       }
 
       // Need to set from the mapped user track ID because we don't know the internals of the indexing of that stack but we have to comply with it
@@ -701,12 +885,18 @@ void Engine::ProcessEvent(Int_t eventId)
 
 Bool_t Engine::ProcessRun(Int_t nevent)
 {
+  if (fFilename.empty() || fTreename.empty()) {
+    ::Warning("Engine::ProcessRun", "Both the path to the step file as well as the treename therein have to specified.");
+    return kFALSE;
+  }
+
   fCurrentEvent = 0;
 
   o2::mcstepanalysis::ROOTIOUtilities treeReader{fFilename};
 
   if (!treeReader.changeToTTree(fTreename)) {
-    Engine::Fatal("Cannot find TTree %s", fTreename.c_str());
+    ::Warning("Cannot find TTree %s", fTreename.c_str());
+    return kFALSE;
   }
 
   if (treeReader.nEntries() == 0) {
@@ -723,7 +913,8 @@ Bool_t Engine::ProcessRun(Int_t nevent)
 
   if (!treeReader.setBranch("Steps", &fCurrentStepInfo) || !treeReader.setBranch("Calls", &fCurrentMagCallInfo) || !treeReader.setBranch("Lookups", &fCurrentLookups)) {
     treeReader.close();
-    Engine::Fatal("Engine::ProcessRun", "Cannot find required branches in TTree %s", fTreename.c_str());
+    ::Warning("Engine::ProcessRun", "Cannot find required branches in TTree %s", fTreename.c_str());
+    return kFALSE;
   }
 
   while (treeReader.processTTree() && fCurrentEvent < nevent) {

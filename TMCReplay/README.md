@@ -49,8 +49,3 @@ As you can see the geometry is required by this executable as well since it has 
 In that case the geometry construction is assumed to implemented by that environment's implementation of `TVirtualMCApplication`. Also, no stack is constructed automatically and it has to be constructed and passed by the user.
 
 Such a scenario is useful to evaluate the impact of parameter variation on hits or even digits.
-
-
-## Comparing 2 step files after a replay
-
-If you want to compare the original step file with the one derived from the replay go [here](../README.md#comparing-analysis-output).

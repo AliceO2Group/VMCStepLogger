@@ -29,7 +29,7 @@ make install
 That leaves you with
 * libraries at `$INSTALL_DIR/lib`
 * headers at`$INSTALL_DIR/include`
-* the executable `$INSTALL_DIR/bin/mcStepAnalysis` (usage explained [below](#mcsteploganalysis))
+* the executable `$INSTALL_DIR/bin/mcStepAnalysis` (usage explained [here](MCStepLogger/README.md#step-analysis))
 
 **Additional options**
 

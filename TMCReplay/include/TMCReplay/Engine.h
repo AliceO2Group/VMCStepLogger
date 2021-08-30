@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <string>
 
+#include <TString.h>
 #include <TVector3.h>
 #include <TLorentzVector.h>
 #include <TMCProcess.h>
@@ -23,8 +24,6 @@
 #include <TVirtualMC.h>
 
 #include "MCStepLogger/StepInfo.h"
-#include "MCStepLogger/ROOTIOUtilities.h"
-
 #include "TMCReplay/Physics.h"
 
 class TVirtualMCStack;
@@ -38,6 +37,8 @@ class Engine : public TVirtualMC
 
  public:
   Engine(const std::string& filename, const std::string& treename);
+  Engine();
+  Engine(Engine const&) = delete;
 
   /// For now just default destructor
   virtual ~Engine();
@@ -77,20 +78,10 @@ class Engine : public TVirtualMC
   ///               calculates it, if <0. -radl is taken
   /// - buf    pointer to an array of user words
   /// - nwbuf  number of user words
-  virtual void Material(Int_t& kmat, const char* name, Double_t a,
-                        Double_t z, Double_t dens, Double_t radl, Double_t absl,
-                        Float_t* buf, Int_t nwbuf) override
-  {
-    Warning("Material", "Not supported");
-  }
+  virtual void Material(Int_t& kmat, const char* name, Double_t a, Double_t z, Double_t dens, Double_t radl, Double_t absl, Float_t* buf, Int_t nwbuf) override;
 
   /// The same as previous but in double precision
-  virtual void Material(Int_t& kmat, const char* name, Double_t a,
-                        Double_t z, Double_t dens, Double_t radl, Double_t absl,
-                        Double_t* buf, Int_t nwbuf) override
-  {
-    Warning("Material", "Not supported");
-  }
+  virtual void Material(Int_t& kmat, const char* name, Double_t a, Double_t z, Double_t dens, Double_t radl, Double_t absl, Double_t* buf, Int_t nwbuf) override;
 
   /// Define a mixture or a compound
   /// with a number kmat composed by the basic nlmat materials defined
@@ -103,18 +94,10 @@ class Engine : public TVirtualMC
   /// of a given kind into the molecule of the compound.
   /// In this case, wmat in output is changed to relative
   /// weights.
-  virtual void Mixture(Int_t& kmat, const char* name, Float_t* a,
-                       Float_t* z, Double_t dens, Int_t nlmat, Float_t* wmat) override
-  {
-    Warning("Mixture", "Not supported");
-  }
+  virtual void Mixture(Int_t& kmat, const char* name, Float_t* a, Float_t* z, Double_t dens, Int_t nlmat, Float_t* wmat) override;
 
   /// The same as previous but in double precision
-  virtual void Mixture(Int_t& kmat, const char* name, Double_t* a,
-                       Double_t* z, Double_t dens, Int_t nlmat, Double_t* wmat) override
-  {
-    Warning("Mixture", "Not supported");
-  }
+  virtual void Mixture(Int_t& kmat, const char* name, Double_t* a, Double_t* z, Double_t dens, Int_t nlmat, Double_t* wmat) override;
 
   /// Define a medium.
   /// - kmed      tracking medium number assigned
@@ -135,22 +118,10 @@ class Engine : public TVirtualMC
   /// - stmin     min. step due to continuous processes (cm)
   /// - ubuf      pointer to an array of user words
   /// - nbuf      number of user words
-  virtual void Medium(Int_t& kmed, const char* name, Int_t nmat,
-                      Int_t isvol, Int_t ifield, Double_t fieldm, Double_t tmaxfd,
-                      Double_t stemax, Double_t deemax, Double_t epsil,
-                      Double_t stmin, Float_t* ubuf, Int_t nbuf) override
-  {
-    Warning("Medium", "Not supported");
-  }
+  virtual void Medium(Int_t& kmed, const char* name, Int_t nmat, Int_t isvol, Int_t ifield, Double_t fieldm, Double_t tmaxfd, Double_t stemax, Double_t deemax, Double_t epsil, Double_t stmin, Float_t* ubuf, Int_t nbuf) override;
 
   /// The same as previous but in double precision
-  virtual void Medium(Int_t& kmed, const char* name, Int_t nmat,
-                      Int_t isvol, Int_t ifield, Double_t fieldm, Double_t tmaxfd,
-                      Double_t stemax, Double_t deemax, Double_t epsil,
-                      Double_t stmin, Double_t* ubuf, Int_t nbuf) override
-  {
-    Warning("Medium", "Not supported");
-  }
+  virtual void Medium(Int_t& kmed, const char* name, Int_t nmat, Int_t isvol, Int_t ifield, Double_t fieldm, Double_t tmaxfd, Double_t stemax, Double_t deemax, Double_t epsil, Double_t stmin, Double_t* ubuf, Int_t nbuf) override;
 
   /// Define a rotation matrix
   /// - krot     rotation matrix number assigned
@@ -160,12 +131,7 @@ class Engine : public TVirtualMC
   /// - phiY     azimuthal angle for axis Y
   /// - thetaZ   polar angle for axis Z
   /// - phiZ     azimuthal angle for axis Z
-  virtual void Matrix(Int_t& krot, Double_t thetaX, Double_t phiX,
-                      Double_t thetaY, Double_t phiY, Double_t thetaZ,
-                      Double_t phiZ) override
-  {
-    Warning("Matrix", "Not supported");
-  }
+  virtual void Matrix(Int_t& krot, Double_t thetaX, Double_t phiX, Double_t thetaY, Double_t phiY, Double_t thetaZ, Double_t phiZ) override;
 
   /// Change the value of cut or mechanism param
   /// to a new value parval for tracking medium itmed.
@@ -190,20 +156,10 @@ class Engine : public TVirtualMC
   /// - nmed   Tracking medium number
   /// - np     Number of shape parameters
   /// - upar   Vector containing shape parameters
-  virtual Int_t Gsvolu(const char* name, const char* shape, Int_t nmed,
-                       Float_t* upar, Int_t np) override
-  {
-    Warning("Gsvolu", "Not supported");
-    return -1;
-  }
+  virtual Int_t Gsvolu(const char* name, const char* shape, Int_t nmed, Float_t* upar, Int_t np) override;
 
   /// The same as previous but in double precision
-  virtual Int_t Gsvolu(const char* name, const char* shape, Int_t nmed,
-                       Double_t* upar, Int_t np) override
-  {
-    Warning("Gsvolu", "Not supported");
-    return -1;
-  }
+  virtual Int_t Gsvolu(const char* name, const char* shape, Int_t nmed, Double_t* upar, Int_t np) override;
 
   /// Create a new volume by dividing an existing one.
   /// It divides a previously defined volume
@@ -212,21 +168,13 @@ class Engine : public TVirtualMC
   /// - ndiv   Number of divisions
   /// - iaxis  Axis value:
   ///               X,Y,Z of CAXIS will be translated to 1,2,3 for IAXIS.
-  virtual void Gsdvn(const char* name, const char* mother, Int_t ndiv,
-                     Int_t iaxis) override
-  {
-    Warning("Gsdvn", "Not supported");
-  }
+  virtual void Gsdvn(const char* name, const char* mother, Int_t ndiv, Int_t iaxis) override;
 
   /// Create a new volume by dividing an existing one.
   /// Divide mother into ndiv divisions called name
   /// along axis iaxis starting at coordinate value c0i.
   /// The new volume created will be medium number numed.
-  virtual void Gsdvn2(const char* name, const char* mother, Int_t ndiv,
-                      Int_t iaxis, Double_t c0i, Int_t numed) override
-  {
-    Warning("Gsdvn2", "Not supported");
-  }
+  virtual void Gsdvn2(const char* name, const char* mother, Int_t ndiv, Int_t iaxis, Double_t c0i, Int_t numed) override;
 
   /// Create a new volume by dividing an existing one
   /// Divide mother into divisions called name along
@@ -236,11 +184,7 @@ class Engine : public TVirtualMC
   /// number numed. If numed is 0, numed of mother is taken.
   /// ndvmx is the expected maximum number of divisions
   /// (If 0, no protection tests are performed in Geant3)
-  virtual void Gsdvt(const char* name, const char* mother, Double_t step,
-                     Int_t iaxis, Int_t numed, Int_t ndvmx) override
-  {
-    Warning("Gsdvt", "Not supported");
-  }
+  virtual void Gsdvt(const char* name, const char* mother, Double_t step, Int_t iaxis, Int_t numed, Int_t ndvmx) override;
 
   /// Create a new volume by dividing an existing one
   /// Divides mother into divisions called name along
@@ -250,11 +194,7 @@ class Engine : public TVirtualMC
   /// If numed is 0, numed of mother is taken.
   /// ndvmx is the expected maximum number of divisions
   /// (If 0, no protection tests are performed in Geant3)
-  virtual void Gsdvt2(const char* name, const char* mother, Double_t step,
-                      Int_t iaxis, Double_t c0, Int_t numed, Int_t ndvmx) override
-  {
-    Warning("Gsdvt2", "Not supported");
-  }
+  virtual void Gsdvt2(const char* name, const char* mother, Double_t step, Int_t iaxis, Double_t c0, Int_t numed, Int_t ndvmx) override;
 
   /// Flag volume name whose contents will have to be ordered
   /// along axis iax, by setting the search flag to -iax
@@ -274,29 +214,14 @@ class Engine : public TVirtualMC
   /// - z      Z coord. of the volume in mother ref. sys.
   /// - irot   Rotation matrix number w.r.t. mother ref. sys.
   /// - konly  ONLY/MANY flag
-  virtual void Gspos(const char* name, Int_t nr, const char* mother,
-                     Double_t x, Double_t y, Double_t z, Int_t irot,
-                     const char* konly = "ONLY") override
-  {
-    Warning("Gspos", "Not supported");
-  }
+  virtual void Gspos(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly = "ONLY") override;
 
   /// Place a copy of generic volume name with user number
   ///  nr inside mother, with its parameters upar(1..np)
-  virtual void Gsposp(const char* name, Int_t nr, const char* mother,
-                      Double_t x, Double_t y, Double_t z, Int_t irot,
-                      const char* konly, Float_t* upar, Int_t np) override
-  {
-    Warning("Gsposp", "Not supported");
-  }
+  virtual void Gsposp(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly, Float_t* upar, Int_t np) override;
 
   /// The same as previous but in double precision
-  virtual void Gsposp(const char* name, Int_t nr, const char* mother,
-                      Double_t x, Double_t y, Double_t z, Int_t irot,
-                      const char* konly, Double_t* upar, Int_t np) override
-  {
-    Warning("Gsposp", "Not supported");
-  }
+  virtual void Gsposp(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly, Double_t* upar, Int_t np) override;
 
   /// Helper function for resolving MANY.
   /// Specify the ONLY volume that overlaps with the
@@ -318,15 +243,13 @@ class Engine : public TVirtualMC
   ///                     - metals    : absorption fraction (0<=x<=1)
   /// - effic       Detection efficiency for UV photons
   /// - rindex      Refraction index (if=0 metal)
-  virtual void SetCerenkov(Int_t itmed, Int_t npckov, Float_t* ppckov,
-                           Float_t* absco, Float_t* effic, Float_t* rindex) override
+  virtual void SetCerenkov(Int_t itmed, Int_t npckov, Float_t* ppckov, Float_t* absco, Float_t* effic, Float_t* rindex) override
   {
     Warning("SetCerenkov", "Not supported");
   }
 
   /// The same as previous but in double precision
-  virtual void SetCerenkov(Int_t itmed, Int_t npckov, Double_t* ppckov,
-                           Double_t* absco, Double_t* effic, Double_t* rindex) override
+  virtual void SetCerenkov(Int_t itmed, Int_t npckov, Double_t* ppckov, Double_t* absco, Double_t* effic, Double_t* rindex) override
   {
     Warning("SetCerenkov", "Not supported");
   }
@@ -344,11 +267,7 @@ class Engine : public TVirtualMC
   /// - surfaceFinish  surface quality (see #EMCOpSurfaceType values)
   /// - sigmaAlpha     an unified model surface parameter
   /// (Geant4 only)
-  virtual void DefineOpSurface(const char* name,
-                               EMCOpSurfaceModel model,
-                               EMCOpSurfaceType surfaceType,
-                               EMCOpSurfaceFinish surfaceFinish,
-                               Double_t sigmaAlpha) override
+  virtual void DefineOpSurface(const char* name, EMCOpSurfaceModel model, EMCOpSurfaceType surfaceType, EMCOpSurfaceFinish surfaceFinish, Double_t sigmaAlpha) override
   {
     Warning("DefineOpSurface", "Not supported");
   }
@@ -361,10 +280,7 @@ class Engine : public TVirtualMC
   /// - vol2CopyNo  second volume copy number
   /// - opSurfaceName  name of optical surface which this border belongs to
   /// (Geant4 only)
-  virtual void SetBorderSurface(const char* name,
-                                const char* vol1Name, int vol1CopyNo,
-                                const char* vol2Name, int vol2CopyNo,
-                                const char* opSurfaceName) override
+  virtual void SetBorderSurface(const char* name, const char* vol1Name, int vol1CopyNo, const char* vol2Name, int vol2CopyNo, const char* opSurfaceName) override
   {
     Warning("SetBorderSurface", "Not supported");
   }
@@ -374,9 +290,7 @@ class Engine : public TVirtualMC
   /// - volName     volume name
   /// - opSurfaceName  name of optical surface which this border belongs to
   /// (Geant4 only)
-  virtual void SetSkinSurface(const char* name,
-                              const char* volName,
-                              const char* opSurfaceName) override
+  virtual void SetSkinSurface(const char* name, const char* volName, const char* opSurfaceName) override
   {
     Warning("SetSkinSurface", "Not supported");
   }
@@ -388,9 +302,7 @@ class Engine : public TVirtualMC
   /// - pp            value of photon momentum (in GeV)
   /// - values        property values
   /// (Geant4 only)
-  virtual void SetMaterialProperty(
-    Int_t itmed, const char* propertyName,
-    Int_t np, Double_t* pp, Double_t* values) override
+  virtual void SetMaterialProperty(Int_t itmed, const char* propertyName, Int_t np, Double_t* pp, Double_t* values) override
   {
     Warning("SetMaterialProperty", "Not supported");
   }
@@ -400,9 +312,7 @@ class Engine : public TVirtualMC
   /// - propertyName  property name
   /// - value         property value
   /// (Geant4 only)
-  virtual void SetMaterialProperty(
-    Int_t itmed, const char* propertyName,
-    Double_t value) override
+  virtual void SetMaterialProperty(Int_t itmed, const char* propertyName, Double_t value) override
   {
     Warning("SetMaterialProperty", "Not supported");
   }
@@ -414,9 +324,7 @@ class Engine : public TVirtualMC
   /// - pp            value of photon momentum (in GeV)
   /// - values        property values
   /// (Geant4 only)
-  virtual void SetMaterialProperty(
-    const char* surfaceName, const char* propertyName,
-    Int_t np, Double_t* pp, Double_t* values) override
+  virtual void SetMaterialProperty(const char* surfaceName, const char* propertyName, Int_t np, Double_t* pp, Double_t* values) override
   {
     Warning("SetMaterialProperty", "Not supported");
   }
@@ -436,8 +344,7 @@ class Engine : public TVirtualMC
 
   /// Return the material parameters for the material specified by
   /// the material Id
-  virtual Bool_t GetMaterial(Int_t imat, TString& name, Double_t& a, Double_t& z, Double_t& density,
-                             Double_t& radl, Double_t& inter, TArrayD& par) override
+  virtual Bool_t GetMaterial(Int_t imat, TString& name, Double_t& a, Double_t& z, Double_t& density, Double_t& radl, Double_t& inter, TArrayD& par) override
   {
     Warning("GetMaterial", "Not yet implemented");
     return kFALSE;
@@ -445,14 +352,11 @@ class Engine : public TVirtualMC
 
   /// Return the material parameters for the volume specified by
   /// the volumeName.
-  virtual Bool_t GetMaterial(const TString& volumeName, TString& name, Int_t& imat, Double_t& a, Double_t& z, Double_t& density,
-                             Double_t& radl, Double_t& inter, TArrayD& par) override;
+  virtual Bool_t GetMaterial(const TString& volumeName, TString& name, Int_t& imat, Double_t& a, Double_t& z, Double_t& density, Double_t& radl, Double_t& inter, TArrayD& par) override;
 
   /// Return the medium parameters for the volume specified by the
   /// volumeName.
-  virtual Bool_t GetMedium(const TString& volumeName, TString& name, Int_t& imed, Int_t& nmat, Int_t& isvol, Int_t& ifield,
-                           Double_t& fieldm, Double_t& tmaxfd, Double_t& stemax, Double_t& deemax, Double_t& epsil, Double_t& stmin,
-                           TArrayD& par) override;
+  virtual Bool_t GetMedium(const TString& volumeName, TString& name, Int_t& imed, Int_t& nmat, Int_t& isvol, Int_t& ifield, Double_t& fieldm, Double_t& tmaxfd, Double_t& stemax, Double_t& deemax, Double_t& epsil, Double_t& stmin, TArrayD& par) override;
 
   /// Write out the geometry of the detector in EUCLID file format
   /// - filnam  file name - will be with the extension .euc                 *
@@ -1195,8 +1099,11 @@ class Engine : public TVirtualMC
   virtual Bool_t IsMT() const override { return kFALSE; }
 
  private:
-  Engine(Engine const&);
   Engine& operator=(Engine const&);
+
+  // TODO To be moved to some kind of utilities
+  void adaptToTGeoName(const char* nameIn, char* nameOut) const;
+  Double_t* makeDoubleArray(Float_t* arrIn, int np) const;
 
   int getMediumId(int volId) const;
 
@@ -1208,6 +1115,15 @@ class Engine : public TVirtualMC
   bool keepDueToProcesses(const o2::StepInfo& step) const;
   bool keepDueToCuts(const o2::StepInfo& step) const;
   bool keepStep(const o2::StepInfo& step) const;
+
+  void setStepFileName(const std::string& filename)
+  {
+    fFilename = filename;
+  }
+  void setStepTreeName(const std::string& treename)
+  {
+    fTreename = treename;
+  }
 
   template <typename P, typename T, std::size_t N>
   bool insertProcessOrCut(std::vector<std::vector<P>*>& insertInto, const std::array<T, N>& allParamsNames, const std::vector<P>& defaultParams, Int_t mediumId, const char* paramName, P parval)
@@ -1297,6 +1213,10 @@ class Engine : public TVirtualMC
 
   // local pointer to ROOT's geometry manager
   TGeoManager* fGeoManager;
+  // keep track of number of materials
+  int fMaterialCounter;
+  // keep track of number of materials
+  int fMediumCounter;
 
   ClassDefOverride(Engine, 1);
 };
