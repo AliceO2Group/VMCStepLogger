@@ -27,6 +27,8 @@
 #include "TMCReplay/Physics.h"
 
 class TVirtualMCStack;
+class TBranch;
+class TFile;
 class TGeoManager;
 
 namespace tmcreplay
@@ -56,7 +58,7 @@ class Engine : public TVirtualMC
   /// Info about supporting geometry defined via Root
   virtual Bool_t IsRootGeometrySupported() const override
   {
-    return fIsRootGeometrySupported;
+    return kTRUE;
   }
 
   //
@@ -372,10 +374,7 @@ class Engine : public TVirtualMC
   }
 
   /// Set geometry from Root (built via TGeo)
-  virtual void SetRootGeometry() override
-  {
-    fIsRootGeometrySupported = kTRUE;
-  }
+  virtual void SetRootGeometry() override {}
 
   /// Activate the parameters defined in tracking media
   /// (DEEMAX, STMIN, STEMAX), which are, be default, ignored.
@@ -627,21 +626,21 @@ class Engine : public TVirtualMC
   /// Stop the transport of the current particle and skip to the next
   virtual void StopTrack() override
   {
-    fIsTrackStopped = kTRUE;
+    mIsTrackStopped = true;
   }
 
   /// Stop simulation of the current event and skip to the next
   virtual void StopEvent() override
   {
     StopTrack();
-    fIsEventStopped = kTRUE;
+    mIsEventStopped = true;
   }
 
   /// Stop simulation of the current event and set the abort run flag to true
   virtual void StopRun() override
   {
     StopEvent();
-    fIsRunStopped = kTRUE;
+    mIsRunStopped = true;
   }
 
   //
@@ -652,7 +651,7 @@ class Engine : public TVirtualMC
   /// Set the maximum step allowed till the particle is in the current medium
   virtual void SetMaxStep(Double_t) override
   {
-    Warning("SetMaxStep", "Not yet implemented");
+    //Warning("SetMaxStep", "Not yet implemented");
   }
 
   /// Set the maximum number of steps till the particle is in the current medium
@@ -716,14 +715,14 @@ class Engine : public TVirtualMC
   //// Return the number of the current medium
   virtual Int_t CurrentMedium() const override
   {
-    return getMediumId(fCurrentStep->volId);
+    return getMediumId(mCurrentStep->volId);
   }
   // new function (to replace GetMedium() const)
 
   /// Return the number of the current event
   virtual Int_t CurrentEvent() const override
   {
-    return fCurrentEvent;
+    return mCurrentEvent;
   }
 
   /// Computes coordinates xd in daughter reference system
@@ -765,7 +764,7 @@ class Engine : public TVirtualMC
   /// Return the maximum step length in the current medium
   virtual Double_t MaxStep() const override
   {
-    return fCurrentStep->maxstep;
+    return mCurrentStep->maxstep;
   }
 
   /// Return the maximum number of steps allowed in the current medium
@@ -787,75 +786,74 @@ class Engine : public TVirtualMC
   virtual void TrackPosition(TLorentzVector& position) const override
   {
     // Time not yet implemented in MCStepLogger
-    position.SetXYZT(fCurrentStep->x, fCurrentStep->y, fCurrentStep->z, -1.);
+    position.SetXYZT(mCurrentStep->x, mCurrentStep->y, mCurrentStep->z, -1.);
   }
 
   /// Only return spatial coordinates (as double)
   virtual void TrackPosition(Double_t& x, Double_t& y, Double_t& z) const override
   {
-    x = fCurrentStep->x;
-    y = fCurrentStep->y;
-    z = fCurrentStep->z;
+    x = mCurrentStep->x;
+    y = mCurrentStep->y;
+    z = mCurrentStep->z;
   }
 
   /// Only return spatial coordinates (as float)
   virtual void TrackPosition(Float_t& x, Float_t& y, Float_t& z) const override
   {
-    x = fCurrentStep->x;
-    y = fCurrentStep->y;
-    z = fCurrentStep->z;
+    x = mCurrentStep->x;
+    y = mCurrentStep->y;
+    z = mCurrentStep->z;
   }
 
   /// Return the direction and the momentum (GeV/c) of the track
   /// currently being transported
   virtual void TrackMomentum(TLorentzVector& momentum) const override
   {
-    momentum.SetXYZT(fCurrentStep->px, fCurrentStep->py, fCurrentStep->pz, fCurrentStep->E);
+    momentum.SetXYZT(mCurrentStep->px, mCurrentStep->py, mCurrentStep->pz, mCurrentStep->E);
   }
 
   /// Return the direction and the momentum (GeV/c) of the track
   /// currently being transported (as double)
   virtual void TrackMomentum(Double_t& px, Double_t& py, Double_t& pz, Double_t& etot) const override
   {
-    px = fCurrentStep->px;
-    py = fCurrentStep->py;
-    pz = fCurrentStep->pz;
-    etot = fCurrentStep->E;
+    px = mCurrentStep->px;
+    py = mCurrentStep->py;
+    pz = mCurrentStep->pz;
+    etot = mCurrentStep->E;
   }
 
   /// Return the direction and the momentum (GeV/c) of the track
   /// currently being transported (as float)
   virtual void TrackMomentum(Float_t& px, Float_t& py, Float_t& pz, Float_t& etot) const override
   {
-    px = fCurrentStep->px;
-    py = fCurrentStep->py;
-    pz = fCurrentStep->pz;
-    etot = fCurrentStep->E;
+    px = mCurrentStep->px;
+    py = mCurrentStep->py;
+    pz = mCurrentStep->pz;
+    etot = mCurrentStep->E;
   }
 
   /// Return the length in centimeters of the current step (in cm)
   virtual Double_t TrackStep() const override
   {
-    return fCurrentStep->step;
+    return mCurrentStep->step;
   }
 
   /// Return the length of the current track from its origin (in cm)
   virtual Double_t TrackLength() const override
   {
-    return fCurrentTrackLength;
+    return mCurrentTrackLength;
   }
 
   /// Return the current time of flight of the track being transported
   virtual Double_t TrackTime() const override
   {
-    Warning("TrackTime", "Not yet implemented");
-    return -1.;
+    return mCurrentStep->t;
   }
 
   /// Return the energy lost in the current step
   virtual Double_t Edep() const override
   {
-    return fCurrentStep->edep;
+    return mCurrentStep->edep;
   }
 
   /// Return the non-ionising energy lost (NIEL) in the current step
@@ -906,28 +904,26 @@ class Engine : public TVirtualMC
   /// Return the PDG of the particle transported
   virtual Int_t TrackPid() const override
   {
-    return fCurrentLookups->tracktopdg[fCurrentStep->trackID];
+    return mCurrentLookups->tracktopdg[mCurrentStep->trackID];
   }
 
   /// Return the charge of the track currently transported
   virtual Double_t TrackCharge() const override
   {
-    Warning("TrackCharge", "Not yet implemented");
-    return -1.;
+    return mCurrentLookups->tracktocharge[mCurrentStep->trackID];
   }
 
   /// Return the mass of the track currently transported
   virtual Double_t TrackMass() const override
   {
-    Warning("TrackMass", "Not yet implemented");
-    return -1.;
+    return mCurrentLookups->tracktomass[mCurrentStep->trackID];;
   }
 
   /// Return the total energy of the current track
   virtual Double_t Etot() const override
   {
     // TODO make sure E is actually the energy and NOT the energy deposit
-    return fCurrentStep->E;
+    return mCurrentStep->E;
   }
 
   //
@@ -938,33 +934,31 @@ class Engine : public TVirtualMC
   /// Return true when the track performs the first step
   virtual Bool_t IsNewTrack() const override
   {
-    return fCurrentStep->newtrack;
+    return mCurrentStep->newtrack;
   }
 
   /// Return true if the track is not at the boundary of the current volume
   virtual Bool_t IsTrackInside() const override
   {
-    Warning("IsTrackInside", "Not yet implemented");
-    return kFALSE;
+    return mCurrentStep->inside;
   }
 
   /// Return true if this is the first step of the track in the current volume
   virtual Bool_t IsTrackEntering() const override
   {
-    return fCurrentStep->entered;
+    return mCurrentStep->entered;
   }
 
   /// Return true if this is the last step of the track in the current volume
   virtual Bool_t IsTrackExiting() const override
   {
-    return fCurrentStep->exited;
+    return mCurrentStep->exited;
   }
 
   /// Return true if the track is out of the setup
   virtual Bool_t IsTrackOut() const override
   {
-    Warning("IsTrackOut", "Not yet implemented");
-    return kFALSE;
+    return mCurrentStep->outside;
   }
 
   /// Return true if the current particle has disappeared
@@ -972,21 +966,20 @@ class Engine : public TVirtualMC
   /// an inelastic collision
   virtual Bool_t IsTrackDisappeared() const override
   {
-    Warning("IsTrackDisappeared", "Not yet implemented");
-    return kFALSE;
+    return mCurrentStep->disappeared;
   }
 
   /// Return true if the track energy has fallen below the threshold
   virtual Bool_t IsTrackStop() const override
   {
-    return fIsTrackStopped;
+    return mIsTrackStopped;
   }
 
   /// Return true if the current particle is alive and will continue to be
   /// transported
   virtual Bool_t IsTrackAlive() const override
   {
-    return !fIsTrackStopped;
+    return !mIsTrackStopped;
   }
 
   //
@@ -997,7 +990,7 @@ class Engine : public TVirtualMC
   /// Return the number of secondary particles generated in the current step
   virtual Int_t NSecondaries() const override
   {
-    return fCurrentStep->nsecondaries;
+    return mCurrentStep->nsecondaries;
   }
 
   /// Return the parameters of the secondary track number isec produced
@@ -1098,8 +1091,20 @@ class Engine : public TVirtualMC
   /// Return the info if multi-threading is supported/activated
   virtual Bool_t IsMT() const override { return kFALSE; }
 
+  void setStepFilename(const std::string& filename)
+  {
+    mStepLoggerFilename = filename;
+  }
+  void setStepTreename(const std::string& treename)
+  {
+    mStepLoggerTreename = treename;
+  }
+
  private:
   Engine& operator=(Engine const&);
+
+  // init the run if not done yet
+  bool initRun();
 
   // TODO To be moved to some kind of utilities
   void adaptToTGeoName(const char* nameIn, char* nameOut) const;
@@ -1115,15 +1120,6 @@ class Engine : public TVirtualMC
   bool keepDueToProcesses(const o2::StepInfo& step) const;
   bool keepDueToCuts(const o2::StepInfo& step) const;
   bool keepStep(const o2::StepInfo& step) const;
-
-  void setStepFileName(const std::string& filename)
-  {
-    fFilename = filename;
-  }
-  void setStepTreeName(const std::string& treename)
-  {
-    fTreename = treename;
-  }
 
   template <typename P, typename T, std::size_t N>
   bool insertProcessOrCut(std::vector<std::vector<P>*>& insertInto, const std::array<T, N>& allParamsNames, const std::vector<P>& defaultParams, Int_t mediumId, const char* paramName, P parval)
@@ -1161,62 +1157,71 @@ class Engine : public TVirtualMC
   void printCurrentCuts() const
   {
     std::cout << "CURRENT CUTS\n";
-    for (int i = 0; i < fcurrentCuts->size(); i++) {
-      std::cout << "  -> " << physics::namesCuts[i] << ": " << (*fcurrentCuts)[i] << "\n";
+    for (int i = 0; i < mCurrentCuts->size(); i++) {
+      std::cout << "  -> " << physics::namesCuts[i] << ": " << (*mCurrentCuts)[i] << "\n";
     }
     std::cout << "---" << std::endl;
   }
 
  private:
-  /// Flag whether this supports geometry via ROOT's TGeo
-  Bool_t fIsRootGeometrySupported;
   /// Stack pointers
-  TVirtualMCStack* fMCStack;
+  TVirtualMCStack* mMCStack = nullptr;
+
   /// Run, event, track flags
-  Bool_t fIsRunStopped;
-  Bool_t fIsEventStopped;
-  Bool_t fIsTrackStopped;
+  bool mIsRunStopped = false;
+  bool mIsEventStopped = false;
+  bool mIsTrackStopped = false;
 
   // File and tree name to process
-  std::string fFilename;
-  std::string fTreename;
+  std::string mStepLoggerFilename;
+  std::string mStepLoggerTreename;
+
+  // branches in the MCStepLogger file
+  TBranch* mStepBranch = nullptr;
+  TBranch* mLookupBranch = nullptr;
+
+  TFile* mStepFile = nullptr;
+
+  bool mIsInitialised = false;
 
   // holding current step and magnetic field information of current event
   /// information of single steps
-  std::vector<o2::StepInfo>* fCurrentStepInfo;
+  //std::vector<o2::StepInfo>* mCurrentStepInfo;
   /// information of magnetic field calls
-  std::vector<o2::MagCallInfo>* fCurrentMagCallInfo;
+  //std::vector<o2::MagCallInfo>* fCurrentMagCallInfo;
   /// some lookups to map IDs to names as well as global properties of tracks
-  o2::StepLookups* fCurrentLookups;
+  o2::StepLookups* mCurrentLookups = nullptr;
 
   // current event ID
-  int fCurrentEvent;
+  int mCurrentEvent = 0;
 
   // the current step
-  o2::StepInfo* fCurrentStep;
+  o2::StepInfo* mCurrentStep = nullptr;
+
+
 
   // increment the current track length
-  double fCurrentTrackLength;
+  double mCurrentTrackLength = 0.;
 
   // Preliminary process structure
-  std::vector<std::vector<Int_t>*> fProcesses;
+  std::vector<std::vector<Int_t>*> mProcesses;
   // Preliminary cut structure
-  std::vector<std::vector<Double_t>*> fCuts;
+  std::vector<std::vector<Double_t>*> mCuts;
   // Preliminary process structure for global parameters
-  std::vector<Int_t> fProcessesGlobal;
+  std::vector<Int_t> mProcessesGlobal;
   // Preliminary cut structure for global parameters
-  std::vector<Double_t> fCutsGlobal;
+  std::vector<Double_t> mCutsGlobal;
   // point to the current map of processes
-  std::vector<Int_t>* fcurrentProcesses;
+  std::vector<Int_t>* mCurrentProcesses = nullptr;
   // point to the current map of cuts
-  std::vector<Double_t>* fcurrentCuts;
+  std::vector<Double_t>* mCurrentCuts = nullptr;
 
   // local pointer to ROOT's geometry manager
-  TGeoManager* fGeoManager;
+  TGeoManager* mGeoManager = nullptr;
   // keep track of number of materials
-  int fMaterialCounter;
+  int mMaterialCounter = 0;
   // keep track of number of materials
-  int fMediumCounter;
+  int mMediumCounter = 0;
 
   ClassDefOverride(Engine, 1);
 };

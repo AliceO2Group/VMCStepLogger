@@ -101,6 +101,7 @@ StepInfo::StepInfo(TVirtualMC* mc)
 
   double xd, yd, zd;
   mc->TrackPosition(xd, yd, zd);
+  t = mc->TrackTime();
   x = xd;
   y = yd;
   z = zd;
@@ -131,10 +132,18 @@ StepInfo::StepInfo(TVirtualMC* mc)
   nprocessesactive = procs.GetSize();
 
   // was track stopped due to energy limit ??
+  disappeared = mc->IsTrackDisappeared();
   stopped = mc->IsTrackStop();
   exited = mc->IsTrackExiting();
+  inside = mc->IsTrackInside();
+  outside = mc->IsTrackOut();
   entered = mc->IsTrackEntering();
   newtrack = mc->IsNewTrack();
+
+  if(newtrack) {
+    lookupstructures.setTrackCharge(trackID, mc->TrackCharge());
+    lookupstructures.setTrackMass(trackID, mc->TrackMass());
+  }
 }
 
 const char* StepInfo::getProdProcessAsString() const

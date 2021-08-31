@@ -30,7 +30,7 @@ That will pick up the step file `MCStepLoggerOutput.root`. If you gave that a di
 
 ```bash
 > tmcreplay --help
-Simulation options:
+Replaying a previously recorded particle transport step-by-step. Mainly meant for checking and performance measurements/optimisation of the transport:
   --help                                show this help message and exit
   --stepfilename arg (=MCStepLoggerOutput.root)
                                         MCStepLogger filename
@@ -40,6 +40,7 @@ Simulation options:
                                         ROOT geometry filename
   --geokeyname arg (=FAIRGeom)          key name inside geo file where to find
                                         geometry tree
+
 ```
 
 As you can see the geometry is required by this executable as well since it has otherwise no idea what geometry was used for the original simulation.
