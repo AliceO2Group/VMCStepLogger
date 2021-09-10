@@ -693,7 +693,6 @@ bool MCReplayEngine::isPrimary(int trackId) const
   if (trackId > -1 && trackId < mCurrentLookups->tracktoparent.size()) {
     return mCurrentLookups->tracktoparent[trackId] < 0;
   }
-  std::cout << "################## WE SHOULD NEVER REACH THIS" << std::endl;
   return false;
 }
 
@@ -839,7 +838,6 @@ void MCReplayEngine::loadCurrentCutsAndProcesses(int volId)
       mCurrentCuts = mCuts[mediumId];
     }
   }
-  std::cout << "keepDueToSteps" << mCurrentCuts << std::endl;
 }
 
 bool MCReplayEngine::keepDueToProcesses(const o2::StepInfo& step) const
@@ -849,7 +847,6 @@ bool MCReplayEngine::keepDueToProcesses(const o2::StepInfo& step) const
 
 bool MCReplayEngine::keepDueToCuts(const o2::StepInfo& step) const
 {
-  std::cout << "keepDueToSteps" << mCurrentCuts << std::endl;
   if ((*mCurrentCuts)[11] >= 0 && step.E < (*mCurrentCuts)[11]) {
     // check global energy cut
     return false;
@@ -897,7 +894,6 @@ void MCReplayEngine::transportUserHitSecondary()
 
 void MCReplayEngine::ProcessEvent(Int_t eventId)
 {
-
   if (!initRun()) {
     return;
   }

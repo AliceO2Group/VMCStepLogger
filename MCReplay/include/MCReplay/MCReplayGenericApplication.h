@@ -16,14 +16,13 @@
 
 #include <TVirtualMCApplication.h>
 
-#include "MCReplay/MCReplayEvGen.h"
-
 class TGeoManager;
 
 namespace mcreplay
 {
 class MCReplayGenericStack;
-}
+class MCReplayEvGen;
+} // namespace mcreplay
 
 namespace mcreplay
 {
@@ -32,7 +31,7 @@ class MCReplayGenericApplication : public TVirtualMCApplication
 {
 
  public:
-  MCReplayGenericApplication(const std::string& geoFilename, const std::string& geoKeyname, const std::string& stepFilename, const std::string& stepTreename);
+  MCReplayGenericApplication(const std::string& geoFilename, const std::string& geoKeyname);
 
   /// For now just default destructor
   virtual ~MCReplayGenericApplication() = default;
@@ -66,6 +65,11 @@ class MCReplayGenericApplication : public TVirtualMCApplication
     mStack = stack;
   }
 
+  void setEvGen(MCReplayEvGen* gen)
+  {
+    mPrimGen = gen;
+  }
+
  private:
   // Filename where geometry can be found
   std::string mGeoFilename;
@@ -76,7 +80,7 @@ class MCReplayGenericApplication : public TVirtualMCApplication
   // stack
   MCReplayGenericStack* mStack;
   // primary generator
-  MCReplayEvGen mPrimGen;
+  MCReplayEvGen* mPrimGen;
 
   ClassDefOverride(MCReplayGenericApplication, 1);
 };

@@ -12,6 +12,8 @@
 #ifndef MC_REPLAY_GENERIC_STACK_H
 #define MC_REPLAY_GENERIC_STACK_H
 
+#include <stack>
+
 #include <TVirtualMCStack.h>
 
 class TParticle;
@@ -33,10 +35,8 @@ class MCReplayGenericStack : public TVirtualMCStack
                          TMCProcess mech, Int_t& ntr, Double_t weight,
                          Int_t is) override;
 
-  virtual TParticle* PopNextTrack(Int_t& itrack) override
-  {
-    return nullptr;
-  }
+  virtual TParticle* PopNextTrack(Int_t& itrack) override;
+
   virtual TParticle* PopPrimaryForTracking(Int_t i) override
   {
     // not implemented
@@ -96,6 +96,10 @@ class MCReplayGenericStack : public TVirtualMCStack
   // all particles ever pushed
   // TODO we can make that unique_ptrs?!
   std::vector<TParticle*> mParticles;
+  // indices of particles to be transported
+  std::stack<int> mStack;
+  // keep track of number of tracks
+  int mNTracks = 0;
 
   ClassDefOverride(MCReplayGenericStack, 1);
 };

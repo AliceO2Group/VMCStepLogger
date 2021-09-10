@@ -85,6 +85,7 @@ bool MCReplayEvGen::next(TVirtualMCStack* stack)
     if (!step.newtrack || lookups->tracktoparent[step.trackID] >= 0) {
       continue;
     }
+    std::cout << "Push primary " << step.trackID << " with PDG " << lookups->tracktopdg[step.trackID] << " to stack" << std::endl;
     foundPrimary = true;
     stack->PushTrack(1, -1, lookups->tracktopdg[step.trackID], step.px, step.py, step.pz, step.E, step.x, step.y, step.z, step.t, 1., 1., 1., TMCProcess(step.prodprocess), stackTrackID, 1., 0);
   }

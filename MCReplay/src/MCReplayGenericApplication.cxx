@@ -12,35 +12,31 @@
 #include "TGeoManager.h"
 
 #include "MCReplay/MCReplayGenericStack.h"
+#include "MCReplay/MCReplayEvGen.h"
 #include "MCReplay/MCReplayGenericApplication.h"
 
 ClassImp(mcreplay::MCReplayGenericApplication);
 
 using namespace mcreplay;
 
-MCReplayGenericApplication::MCReplayGenericApplication(const std::string& geoFilename, const std::string& geoKeyname, const std::string& stepFilename, const std::string& stepTreename)
+MCReplayGenericApplication::MCReplayGenericApplication(const std::string& geoFilename, const std::string& geoKeyname)
   : TVirtualMCApplication{"MCReplayGenericApplication", "MCReplayGenericApplication"},
     mGeoFilename{geoFilename},
     mGeoKeyname{geoKeyname},
     mGeoManager{nullptr},
     mStack{nullptr},
-    mPrimGen{stepFilename, stepTreename}
+    mPrimGen{nullptr}
 {
+  if (mGeoFilename.empty() || mGeoKeyname.empty()) {
+    // Otherwise assume that the geometry was constructed already by the user
+    ::Fatal("MCReplayGenericApplication::ctor", "Need file and key name where to find TGeo geometry");
+  }
+  mGeoManager = TGeoManager::Import(mGeoFilename.c_str(), mGeoKeyname.c_str());
 }
 
 void MCReplayGenericApplication::ConstructGeometry()
 {
-  if (!gGeoManager) {
-    // construct one if not present
-    new TGeoManager();
-  }
-
-  mGeoManager = gGeoManager;
-
-  if (!mGeoFilename.empty() && !mGeoKeyname.empty()) {
-    // Otherwise assume that the geometry was constructed already by the user
-    mGeoManager->Import(mGeoFilename.c_str(), mGeoKeyname.c_str());
-  }
+  ::Info("MCReplayGenericApplication::ConstructGeometry", "geometry already constructed");
 }
 
 void MCReplayGenericApplication::BeginEvent()
@@ -50,7 +46,7 @@ void MCReplayGenericApplication::BeginEvent()
 
 void MCReplayGenericApplication::GeneratePrimaries()
 {
-  if (!mPrimGen.next(mStack)) {
+  if (!mPrimGen->next(mStack)) {
     ::Warning("MCReplayGenericApplication::GeneratePrimaries", "Could not retrieve primaries");
   }
 }

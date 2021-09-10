@@ -39,6 +39,11 @@ class MCReplayEvGen
     mStepLoggerTreename = treename;
   }
 
+  int getNEvents() const
+  {
+    return mEventsAvailable;
+  }
+
   bool init();
 
   bool next(TVirtualMCStack* stack);

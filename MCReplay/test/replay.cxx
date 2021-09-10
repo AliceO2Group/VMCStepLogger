@@ -20,6 +20,7 @@
 
 #include "MCReplay/MCReplayGenericApplication.h"
 #include "MCReplay/MCReplayGenericStack.h"
+#include "MCReplay/MCReplayEvGen.h"
 #include "MCReplay/MCReplayEngine.h"
 
 BOOST_AUTO_TEST_CASE(testReplay)
@@ -33,13 +34,16 @@ BOOST_AUTO_TEST_CASE(testReplay)
   BOOST_REQUIRE(boost::unit_test::framework::master_test_suite().argc == 5);
 
   mcreplay::MCReplayGenericStack stack;
-  mcreplay::MCReplayGenericApplication app{boost::unit_test::framework::master_test_suite().argv[3], boost::unit_test::framework::master_test_suite().argv[4], boost::unit_test::framework::master_test_suite().argv[1], boost::unit_test::framework::master_test_suite().argv[2]};
+  mcreplay::MCReplayEvGen gen{boost::unit_test::framework::master_test_suite().argv[1], boost::unit_test::framework::master_test_suite().argv[2]};
+  mcreplay::MCReplayGenericApplication app{boost::unit_test::framework::master_test_suite().argv[3], boost::unit_test::framework::master_test_suite().argv[4]};
   mcreplay::MCReplayEngine mc{boost::unit_test::framework::master_test_suite().argv[1], boost::unit_test::framework::master_test_suite().argv[2]};
 
-  mc.SetStack(&stack);
+  gen.init();
   app.setStack(&stack);
+  app.setEvGen(&gen);
+  mc.SetStack(&stack);
   mc.Init();
 
   // replay all events
-  BOOST_REQUIRE(mc.ProcessRun(-1));
+  BOOST_REQUIRE(mc.ProcessRun(gen.getNEvents()));
 }
