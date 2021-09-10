@@ -847,7 +847,7 @@ bool MCReplayEngine::keepDueToProcesses(const o2::StepInfo& step) const
 
 bool MCReplayEngine::keepDueToCuts(const o2::StepInfo& step) const
 {
-  if ((*mCurrentCuts)[11] >= 0 && step.E < (*mCurrentCuts)[11]) {
+  if ((*mCurrentCuts)[11] > 0. && step.E < (*mCurrentCuts)[11]) {
     // check global energy cut
     return false;
   }
