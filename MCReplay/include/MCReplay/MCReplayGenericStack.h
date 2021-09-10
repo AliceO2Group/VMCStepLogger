@@ -9,22 +9,22 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-#ifndef TMC_REPLAY_GENERIC_STACK_H
-#define TMC_REPLAY_GENERIC_STACK_H
+#ifndef MC_REPLAY_GENERIC_STACK_H
+#define MC_REPLAY_GENERIC_STACK_H
 
 #include <TVirtualMCStack.h>
 
 class TParticle;
 
-namespace tmcreplay
+namespace mcreplay
 {
 
-class GenericStack : public TVirtualMCStack
+class MCReplayGenericStack : public TVirtualMCStack
 {
 
  public:
-  GenericStack();
-  virtual ~GenericStack();
+  MCReplayGenericStack() = default;
+  virtual ~MCReplayGenericStack();
 
   virtual void PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
                          Double_t px, Double_t py, Double_t pz, Double_t e,
@@ -49,33 +49,33 @@ class GenericStack : public TVirtualMCStack
   virtual Int_t GetNtrack() const override
   {
     // TODO to be implemented properly
-    return fParticles.size();
+    return mParticles.size();
   }
 
   /// Total number of primary tracks
   virtual Int_t GetNprimary() const override
   {
     // TODO to be implemented properly
-    return fNPrimaries;
+    return mNPrimaries;
   }
 
   /// Current track particle
   virtual TParticle* GetCurrentTrack() const override
   {
-    return fCurrentParticle;
+    return mCurrentParticle;
   }
 
   /// Current track number
   virtual Int_t GetCurrentTrackNumber() const override
   {
-    return fCurrentTrackId;
+    return mCurrentTrackId;
   }
 
   /// Number of the parent of the current track
   virtual Int_t GetCurrentParentTrackNumber() const override
   {
     // TODO to be implemented properly
-    return fCurrentParentTrackId;
+    return mCurrentParentTrackId;
   }
 
   void newEvent();
@@ -86,19 +86,19 @@ class GenericStack : public TVirtualMCStack
 
  private:
   // current track ID
-  Int_t fCurrentTrackId;
+  Int_t mCurrentTrackId = -1;
   // current parent track ID
-  Int_t fCurrentParentTrackId;
+  Int_t mCurrentParentTrackId = -1;
   // number of primaries
-  Int_t fNPrimaries;
+  Int_t mNPrimaries = 0;
   // current TMCParticle pointer
-  TParticle* fCurrentParticle;
+  TParticle* mCurrentParticle = nullptr;
   // all particles ever pushed
   // TODO we can make that unique_ptrs?!
-  std::vector<TParticle*> fParticles;
+  std::vector<TParticle*> mParticles;
 
-  ClassDefOverride(GenericStack, 1);
+  ClassDefOverride(MCReplayGenericStack, 1);
 };
-} // end namespace tmcreplay
+} // end namespace mcreplay
 
-#endif /* TMC_REPLAY_GENERIC_STACK_H */
+#endif /* MC_REPLAY_GENERIC_STACK_H */

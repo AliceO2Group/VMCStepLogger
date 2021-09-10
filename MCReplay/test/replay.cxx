@@ -13,14 +13,14 @@
 
 #define BOOST_TEST_MAIN
 #define BOOST_TEST_DYN_LINK
-#define BOOST_TEST_MODULE TMCReplayCoreTest
+#define BOOST_TEST_MODULE MCReplayCoreTest
 
 #include <boost/test/unit_test.hpp>
 #include <boost/test/results_collector.hpp>
 
-#include "TMCReplay/GenericApplication.h"
-#include "TMCReplay/GenericStack.h"
-#include "TMCReplay/Engine.h"
+#include "MCReplay/MCReplayGenericApplication.h"
+#include "MCReplay/MCReplayGenericStack.h"
+#include "MCReplay/MCReplayEngine.h"
 
 BOOST_AUTO_TEST_CASE(testReplay)
 {
@@ -32,9 +32,9 @@ BOOST_AUTO_TEST_CASE(testReplay)
   // 4. Key name were to find geometry therein
   BOOST_REQUIRE(boost::unit_test::framework::master_test_suite().argc == 5);
 
-  tmcreplay::GenericStack stack;
-  tmcreplay::GenericApplication app{boost::unit_test::framework::master_test_suite().argv[3], boost::unit_test::framework::master_test_suite().argv[4]};
-  tmcreplay::Engine mc{boost::unit_test::framework::master_test_suite().argv[1], boost::unit_test::framework::master_test_suite().argv[2]};
+  mcreplay::MCReplayGenericStack stack;
+  mcreplay::MCReplayGenericApplication app{boost::unit_test::framework::master_test_suite().argv[3], boost::unit_test::framework::master_test_suite().argv[4], boost::unit_test::framework::master_test_suite().argv[1], boost::unit_test::framework::master_test_suite().argv[2]};
+  mcreplay::MCReplayEngine mc{boost::unit_test::framework::master_test_suite().argv[1], boost::unit_test::framework::master_test_suite().argv[2]};
 
   mc.SetStack(&stack);
   app.setStack(&stack);

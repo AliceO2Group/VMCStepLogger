@@ -73,7 +73,7 @@ set(MACROS
 ####################
 mcsl_add_library(
   TARGETNAME Core
-  BASENAME MCStepLogger
+  BASENAME ${MODULE_NAME}
   DEPENDENCIES ROOT::Core ROOT::Hist ROOT::Graf ROOT::Gpad ROOT::Tree ROOT::VMC ROOT::RIO ROOT::Geom ROOT::EG
   SOURCES ${SRCS_CORE}
   INCLUDE_DIRECTORIES ${CMAKE_CURRENT_LIST_DIR}/include
@@ -85,7 +85,7 @@ mcsl_add_library(
 ###################################
 mcsl_add_library(
   TARGETNAME InterceptSteps
-  BASENAME MCStepLogger
+  BASENAME ${MODULE_NAME}
   DEPENDENCIES MCStepLoggerCore
   SOURCES ${SRCS_INTERCEPT_STEPS}
   INCLUDE_DIRECTORIES ${CMAKE_CURRENT_LIST_DIR}/include)
@@ -95,7 +95,7 @@ mcsl_add_library(
 ########################
 mcsl_add_library(
   TARGETNAME Analysis
-  BASENAME MCStepLogger
+  BASENAME ${MODULE_NAME}
   DEPENDENCIES MCStepLoggerCore
   SOURCES ${SRCS_ANALYSIS}
   INCLUDE_DIRECTORIES ${CMAKE_CURRENT_LIST_DIR}/include

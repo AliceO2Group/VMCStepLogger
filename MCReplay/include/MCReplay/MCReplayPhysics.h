@@ -9,19 +9,22 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-#ifndef TMC_REPLAY_PHYSICS_H
-#define TMC_REPLAY_PHYSICS_H
+#ifndef MC_REPLAY_PHYSICS_H
+#define MC_REPLAY_PHYSICS_H
 
 #include <array>
-#include <unordered_map>
 
 // Fix process and cut names
-namespace tmcreplay
+namespace mcreplay
 {
 namespace physics
 {
+// standard GEANT process parameter names
 constexpr std::array<const char*, 15> namesProcesses = {"PAIR", "COMP", "PHOT", "PFIS", "DRAY", "ANNI", "BREM", "HADR", "MUNU", "DCAY", "LOSS", "MULS", "CKOV", "RAYL", "LABS"};
-constexpr std::array<const char*, 11> namesCuts = {"CUTGAM", "CUTELE", "CUTNEU", "CUTHAD", "CUTMUO", "NCUTE", "BCUTM", "DCUTE", "DCUTM", "PPCUTM", "TOFMAX"};
+// standard GEANT cut parameter names (1-11)
+// additional Replay cut parameter names (12-n):
+// ALLE: energy cut applying to all tracks independent of PDG
+constexpr std::array<const char*, 12> namesCuts = {"CUTGAM", "CUTELE", "CUTNEU", "CUTHAD", "CUTMUO", "NCUTE", "BCUTM", "DCUTE", "DCUTM", "PPCUTM", "TOFMAX", "ALLE"};
 constexpr const char* unknownParam = "UNKNOWN";
 
 template <typename T, std::size_t N>
@@ -44,6 +47,6 @@ const char* indexToParam(const std::array<T, N>& allParams, std::size_t index)
 }
 
 } // namespace physics
-} // end namespace tmcreplay
+} // end namespace mcreplay
 
-#endif /* TMC_REPLAY_PHYSICS_H */
+#endif /* MC_REPLAY_PHYSICS_H */

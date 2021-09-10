@@ -13,9 +13,9 @@
 
 #include <boost/program_options.hpp>
 
-#include "TMCReplay/GenericApplication.h"
-#include "TMCReplay/GenericStack.h"
-#include "TMCReplay/Engine.h"
+#include "MCReplay/MCReplayGenericApplication.h"
+#include "MCReplay/MCReplayGenericStack.h"
+#include "MCReplay/MCReplayEngine.h"
 
 namespace bpo = boost::program_options;
 
@@ -41,9 +41,9 @@ int main(int argc, char* argv[])
   const std::string geoFilename{vm["geofilename"].as<std::string>()};
   const std::string geoKeyname{vm["geokeyname"].as<std::string>()};
 
-  tmcreplay::GenericStack stack;
-  tmcreplay::GenericApplication app{geoFilename, geoKeyname};
-  tmcreplay::Engine mc{filename, treename};
+  mcreplay::MCReplayGenericStack stack;
+  mcreplay::MCReplayGenericApplication app{geoFilename, geoKeyname, filename, treename};
+  mcreplay::MCReplayEngine mc{filename, treename};
   mc.SetStack(&stack);
   app.setStack(&stack);
   mc.Init();

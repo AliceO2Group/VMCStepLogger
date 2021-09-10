@@ -9,8 +9,8 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-#ifndef TMC_REPLAY_ENGINE_H
-#define TMC_REPLAY_ENGINE_H
+#ifndef MC_REPLAY_ENGINE_H
+#define MC_REPLAY_ENGINE_H
 
 #include <vector>
 #include <unordered_map>
@@ -24,26 +24,29 @@
 #include <TVirtualMC.h>
 
 #include "MCStepLogger/StepInfo.h"
-#include "TMCReplay/Physics.h"
+#include "MCReplay/MCReplayPhysics.h"
 
 class TVirtualMCStack;
 class TBranch;
 class TFile;
 class TGeoManager;
+class TGeoVolume;
+class TGeoNode;
 
-namespace tmcreplay
+namespace mcreplay
 {
 
-class Engine : public TVirtualMC
+class MCReplayEngine : public TVirtualMC
 {
 
  public:
-  Engine(const std::string& filename, const std::string& treename);
-  Engine();
-  Engine(Engine const&) = delete;
+  MCReplayEngine(const std::string& filename, const std::string& treename);
+  MCReplayEngine();
+  MCReplayEngine(MCReplayEngine const&) = delete;
+  MCReplayEngine& operator=(MCReplayEngine const&) = delete;
 
   /// For now just default destructor
-  virtual ~Engine();
+  virtual ~MCReplayEngine();
 
   //
   // All the derived stuff
@@ -626,6 +629,7 @@ class Engine : public TVirtualMC
   /// Stop the transport of the current particle and skip to the next
   virtual void StopTrack() override
   {
+    // Actually, that should never be called but can happen in a replay due to double (original) vs. float (replay), or similar
     mIsTrackStopped = true;
   }
 
@@ -732,16 +736,10 @@ class Engine : public TVirtualMC
   /// - iflag
   ///   - IFLAG = 1  convert coordinates
   ///   - IFLAG = 2  convert direction cosines
-  virtual void Gmtod(Float_t* xm, Float_t* xd, Int_t iflag) override
-  {
-    Warning("Gmtod", "Not yet implemented");
-  }
+  virtual void Gmtod(Float_t* xm, Float_t* xd, Int_t iflag) override;
 
   /// The same as previous but in double precision
-  virtual void Gmtod(Double_t* xm, Double_t* xd, Int_t iflag) override
-  {
-    Warning("Gmtod", "Not yet implemented");
-  }
+  virtual void Gmtod(Double_t* xm, Double_t* xd, Int_t iflag) override;
 
   /// Computes coordinates xm in mother reference system
   /// from known coordinates xd in daughter reference system.
@@ -750,16 +748,10 @@ class Engine : public TVirtualMC
   /// - iflag
   ///   - IFLAG = 1  convert coordinates
   ///   - IFLAG = 2  convert direction cosines
-  virtual void Gdtom(Float_t* xd, Float_t* xm, Int_t iflag) override
-  {
-    Warning("Gdtom", "Not yet implemented");
-  }
+  virtual void Gdtom(Float_t* xd, Float_t* xm, Int_t iflag) override;
 
   /// The same as previous but in double precision
-  virtual void Gdtom(Double_t* xd, Double_t* xm, Int_t iflag) override
-  {
-    Warning("Gdtom", "Not yet implemented");
-  }
+  virtual void Gdtom(Double_t* xd, Double_t* xm, Int_t iflag) override;
 
   /// Return the maximum step length in the current medium
   virtual Double_t MaxStep() const override
@@ -786,7 +778,7 @@ class Engine : public TVirtualMC
   virtual void TrackPosition(TLorentzVector& position) const override
   {
     // Time not yet implemented in MCStepLogger
-    position.SetXYZT(mCurrentStep->x, mCurrentStep->y, mCurrentStep->z, -1.);
+    position.SetXYZT(mCurrentStep->x, mCurrentStep->y, mCurrentStep->z, mCurrentStep->t);
   }
 
   /// Only return spatial coordinates (as double)
@@ -916,7 +908,7 @@ class Engine : public TVirtualMC
   /// Return the mass of the track currently transported
   virtual Double_t TrackMass() const override
   {
-    return mCurrentLookups->tracktomass[mCurrentStep->trackID];;
+    return mCurrentLookups->tracktomass[mCurrentStep->trackID];
   }
 
   /// Return the total energy of the current track
@@ -972,14 +964,14 @@ class Engine : public TVirtualMC
   /// Return true if the track energy has fallen below the threshold
   virtual Bool_t IsTrackStop() const override
   {
-    return mIsTrackStopped;
+    return mCurrentStep->stopped;
   }
 
   /// Return true if the current particle is alive and will continue to be
   /// transported
   virtual Bool_t IsTrackAlive() const override
   {
-    return !mIsTrackStopped;
+    return !mCurrentStep->stopped;
   }
 
   //
@@ -1022,8 +1014,7 @@ class Engine : public TVirtualMC
   /// Return the information about the transport order needed by the stack
   virtual Bool_t SecondariesAreOrdered() const override
   {
-    Warning("SecondariesAreOrdered", "Not yet implemented");
-    return kFALSE;
+    return kTRUE;
   }
 
   //
@@ -1091,6 +1082,7 @@ class Engine : public TVirtualMC
   /// Return the info if multi-threading is supported/activated
   virtual Bool_t IsMT() const override { return kFALSE; }
 
+  // set filename and treename where to find the steps
   void setStepFilename(const std::string& filename)
   {
     mStepLoggerFilename = filename;
@@ -1101,26 +1093,38 @@ class Engine : public TVirtualMC
   }
 
  private:
-  Engine& operator=(Engine const&);
-
-  // init the run if not done yet
+  // init the run, used to guarantee that both ProcessRun and ProcessEvent
+  // work just fine
   bool initRun();
 
-  // TODO To be moved to some kind of utilities
+  // TODO Can most likely be removed
   void adaptToTGeoName(const char* nameIn, char* nameOut) const;
+
+  // That is just a helper function to address some of the
+  // interactions with the TGeoManager
   Double_t* makeDoubleArray(Float_t* arrIn, int np) const;
 
+  // Lookup the medium ID for a given volume
   int getMediumId(int volId) const;
 
-  // load cuts and processes for volume ID
+  // load cuts and processes for given volume ID
   void loadCurrentCutsAndProcesses(int volId);
 
   // check whether step is primary
   bool isPrimary(int trackId) const;
+  // decide if a step should be kept or not
   bool keepDueToProcesses(const o2::StepInfo& step) const;
   bool keepDueToCuts(const o2::StepInfo& step) const;
   bool keepStep(const o2::StepInfo& step) const;
 
+  // treat a user secondary that was, for instance, pushed to the stack during hit creation
+  void transportUserHitSecondary();
+
+  // helper function to derive a hash from step properties to seed gRandom
+  // On the shoulders of o2::data::Stack
+  ULong_t makeHash(const o2::StepInfo& step) const;
+
+  // add process or cut values based on name and value
   template <typename P, typename T, std::size_t N>
   bool insertProcessOrCut(std::vector<std::vector<P>*>& insertInto, const std::array<T, N>& allParamsNames, const std::vector<P>& defaultParams, Int_t mediumId, const char* paramName, P parval)
   {
@@ -1154,20 +1158,14 @@ class Engine : public TVirtualMC
     return true;
   }
 
-  void printCurrentCuts() const
-  {
-    std::cout << "CURRENT CUTS\n";
-    for (int i = 0; i < mCurrentCuts->size(); i++) {
-      std::cout << "  -> " << physics::namesCuts[i] << ": " << (*mCurrentCuts)[i] << "\n";
-    }
-    std::cout << "---" << std::endl;
-  }
+  void printCurrentCuts() const;
 
  private:
   /// Stack pointers
-  TVirtualMCStack* mMCStack = nullptr;
+  TVirtualMCStack* mStack = nullptr;
 
   /// Run, event, track flags
+  /// NOTE These flags could most likely be removed
   bool mIsRunStopped = false;
   bool mIsEventStopped = false;
   bool mIsTrackStopped = false;
@@ -1176,32 +1174,27 @@ class Engine : public TVirtualMC
   std::string mStepLoggerFilename;
   std::string mStepLoggerTreename;
 
+  // pointer to opened step file
+  TFile* mStepFile = nullptr;
+
   // branches in the MCStepLogger file
   TBranch* mStepBranch = nullptr;
   TBranch* mLookupBranch = nullptr;
 
-  TFile* mStepFile = nullptr;
-
+  // flag if initialised, use this flag to either use ProcessRun
+  // or to simulate single events with ProcessEvent
   bool mIsInitialised = false;
 
-  // holding current step and magnetic field information of current event
-  /// information of single steps
-  //std::vector<o2::StepInfo>* mCurrentStepInfo;
-  /// information of magnetic field calls
-  //std::vector<o2::MagCallInfo>* fCurrentMagCallInfo;
-  /// some lookups to map IDs to names as well as global properties of tracks
+  // we need to cache the current step and lookups
+  // to address all the needs of the TVirtualMC interfaces
   o2::StepLookups* mCurrentLookups = nullptr;
+  o2::StepInfo* mCurrentStep = nullptr;
 
   // current event ID
   int mCurrentEvent = 0;
 
-  // the current step
-  o2::StepInfo* mCurrentStep = nullptr;
-
-
-
   // increment the current track length
-  double mCurrentTrackLength = 0.;
+  float mCurrentTrackLength = 0.;
 
   // Preliminary process structure
   std::vector<std::vector<Int_t>*> mProcesses;
@@ -1218,13 +1211,18 @@ class Engine : public TVirtualMC
 
   // local pointer to ROOT's geometry manager
   TGeoManager* mGeoManager = nullptr;
+  // current TGeoVolume
+  TGeoVolume* mCurrentTGeoVolume = nullptr;
+  // current TGeoNode
+  TGeoNode* mCurrentTGeoNode = nullptr;
+
   // keep track of number of materials
   int mMaterialCounter = 0;
   // keep track of number of materials
   int mMediumCounter = 0;
 
-  ClassDefOverride(Engine, 1);
+  ClassDefOverride(MCReplayEngine, 1);
 };
-} // end namespace tmcreplay
+} // end namespace mcreplay
 
-#endif /* TMC_REPLAY_ENGINE_H */
+#endif /* MC_REPLAY_ENGINE_H */

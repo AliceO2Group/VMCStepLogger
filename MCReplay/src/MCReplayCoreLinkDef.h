@@ -15,8 +15,9 @@
 #pragma link off all classes;
 #pragma link off all functions;
 
-#pragma link C++ class tmcreplay::Engine + ;
-#pragma link C++ class tmcreplay::GenericApplication + ;
-#pragma link C++ class tmcreplay::GenericStack + ;
+#pragma link C++ class mcreplay::MCReplayEngine + ;
+#pragma link C++ class mcreplay::MCReplayGenericApplication + ;
+#pragma link C++ class mcreplay::MCReplayGenericStack + ;
+#pragma link C++ class mcreplay::MCReplayEvGen + ;
 
 #endif

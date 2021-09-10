@@ -16,6 +16,7 @@
 #include <TBranch.h>
 #include <TFile.h>
 #include <TTree.h>
+#include <TRandom3.h>
 #include <TArrayD.h>
 #include <TGeoManager.h>
 #include <TGeoBBox.h>
@@ -31,45 +32,66 @@
 #include <TGeoHype.h>
 #include <TGeoArb8.h>
 
-#include "TMCReplay/Engine.h"
+#include "TParticle.h"
 
-ClassImp(tmcreplay::Engine);
+#include <TGeoNode.h>
+#include <TGeoVolume.h>
+#include <TIterator.h>
 
-using namespace tmcreplay;
+#include "MCReplay/MCReplayEngine.h"
 
-Engine::Engine(const std::string& filename, const std::string& treename)
-  : TVirtualMC{"ReplayEngine", "ReplayEngine", kTRUE},  mStepLoggerFilename{filename}, mStepLoggerTreename{treename}, mProcessesGlobal(physics::namesProcesses.size(), -1), mCutsGlobal(physics::namesCuts.size(), -1.)
+ClassImp(mcreplay::MCReplayEngine);
+
+using namespace mcreplay;
+
+MCReplayEngine::MCReplayEngine(const std::string& filename, const std::string& treename)
+  : TVirtualMC{"MCReplayEngine", "MCReplayEngine", kTRUE},
+    mStepLoggerFilename{filename},
+    mStepLoggerTreename{treename},
+    mProcessesGlobal(physics::namesProcesses.size(), -1),
+    mCutsGlobal(physics::namesCuts.size(), -1.)
 {
 }
 
-Engine::Engine() : Engine("", "") {}
+MCReplayEngine::MCReplayEngine() : MCReplayEngine("", "") {}
 
-Engine::~Engine()
+MCReplayEngine::~MCReplayEngine()
 {
+  // These are all pointers we own
+  // TODO Actually make them unique pointers
   for (auto& m : mProcesses) {
     delete m;
   }
   for (auto& m : mCuts) {
     delete m;
   }
+  mStepFile->Close();
 }
 
-void Engine::Init()
+void MCReplayEngine::Init()
 {
-  std::cout << "#GEOMANAGER" << gGeoManager << std::endl;
   fApplication->AddParticles();
   fApplication->AddIons();
-  // gGeoManager must be valid pointer now
+  // must cache it here cause during geometry construction VMC methods might be used
   mGeoManager = gGeoManager;
+  // now just run all necessary steps to have the geometry available
   fApplication->ConstructGeometry();
-  std::cout << "#GEOMANAGER" << gGeoManager << std::endl;
+  fApplication->MisalignGeometry();
   fApplication->ConstructOpGeometry();
   fApplication->ConstructSensitiveDetectors();
-  fApplication->MisalignGeometry();
   fApplication->InitGeometry();
 }
 
-void Engine::adaptToTGeoName(const char* nameIn, char* nameOut) const
+void MCReplayEngine::printCurrentCuts() const
+{
+  std::cout << "CURRENT CUTS\n";
+  for (int i = 0; i < mCurrentCuts->size(); i++) {
+    std::cout << "  -> " << physics::namesCuts[i] << ": " << (*mCurrentCuts)[i] << "\n";
+  }
+  std::cout << "---" << std::endl;
+}
+
+void MCReplayEngine::adaptToTGeoName(const char* nameIn, char* nameOut) const
 {
   auto l = strlen(nameIn);
   if (l >= 79) {
@@ -81,7 +103,26 @@ void Engine::adaptToTGeoName(const char* nameIn, char* nameOut) const
   nameOut[l] = 0;
 }
 
-Double_t* Engine::makeDoubleArray(Float_t* arrIn, int np) const
+ULong_t MCReplayEngine::makeHash(const o2::StepInfo& step) const
+{
+  auto asLong = [](decltype(step.x) x) {
+    return (ULong_t) * (reinterpret_cast<ULong_t*>(&x));
+  };
+
+  ULong_t hash;
+
+  hash = asLong(step.x);
+  hash ^= asLong(step.y);
+  hash ^= asLong(step.z);
+  hash ^= asLong(step.t);
+  hash ^= asLong(step.px);
+  hash ^= asLong(step.py);
+  hash ^= asLong(step.pz);
+  hash += (ULong_t)mCurrentLookups->tracktopdg[step.trackID];
+  return hash;
+}
+
+Double_t* MCReplayEngine::makeDoubleArray(Float_t* arrIn, int np) const
 {
   Double_t* arrOut = np > 0 ? new Double_t[np] : nullptr;
   for (int i = 0; i < np; i++) {
@@ -90,23 +131,20 @@ Double_t* Engine::makeDoubleArray(Float_t* arrIn, int np) const
   return arrOut;
 }
 
-void Engine::Material(Int_t& kmat, const char* name, Double_t a, Double_t z, Double_t dens, Double_t radl, Double_t absl, Float_t* buf, Int_t nwbuf)
+void MCReplayEngine::Material(Int_t& kmat, const char* name, Double_t a, Double_t z, Double_t dens, Double_t radl, Double_t absl, Float_t* buf, Int_t nwbuf)
 {
   Double_t* bufDouble = nullptr;
   Material(kmat, name, a, z, dens, radl, absl, bufDouble, -1);
 }
 
-void Engine::Material(Int_t& kmat, const char* name, Double_t a, Double_t z, Double_t dens, Double_t radl, Double_t absl, Double_t* buf, Int_t nwbuf)
+void MCReplayEngine::Material(Int_t& kmat, const char* name, Double_t a, Double_t z, Double_t dens, Double_t radl, Double_t absl, Double_t* buf, Int_t nwbuf)
 {
-  kmat = mMaterialCounter++;
+  kmat = ++mMaterialCounter;
   mGeoManager->Material(name, a, z, dens, kmat, radl, absl);
 }
 
-void Engine::Mixture(Int_t& kmat, const char* name, Double_t* a, Double_t* z, Double_t dens, Int_t nlmat, Double_t* wmat)
+void MCReplayEngine::Mixture(Int_t& kmat, const char* name, Double_t* a, Double_t* z, Double_t dens, Int_t nlmat, Double_t* wmat)
 {
-  // TODO This is for now using ROOT's TGeoManager methods to do that.
-  // IN PRINCIPLE, we are not making any use of the properties internally anyway,
-  // but we have to construct something, since the simulation might ask for GetMaterial/GetMedium
   if (nlmat < 0) {
     nlmat = -nlmat;
     Double_t amol = 0;
@@ -118,15 +156,12 @@ void Engine::Mixture(Int_t& kmat, const char* name, Double_t* a, Double_t* z, Do
       wmat[i] *= a[i] / amol;
     }
   }
-  kmat = mMaterialCounter++;
+  kmat = ++mMaterialCounter;
   mGeoManager->Mixture(name, a, z, dens, nlmat, wmat, kmat);
 }
 
-void Engine::Mixture(Int_t& kmat, const char* name, Float_t* a, Float_t* z, Double_t dens, Int_t nlmat, Float_t* wmat)
+void MCReplayEngine::Mixture(Int_t& kmat, const char* name, Float_t* a, Float_t* z, Double_t dens, Int_t nlmat, Float_t* wmat)
 {
-  // TODO This is for now using ROOT's TGeoManager methods to do that.
-  // IN PRINCIPLE, we are not making any use of the properties internally anyway,
-  // but we have to construct something, since the simulation might ask for GetMaterial/GetMedium
   auto aDouble = makeDoubleArray(a, TMath::Abs(nlmat));
   auto zDouble = makeDoubleArray(z, TMath::Abs(nlmat));
   auto wmatDouble = makeDoubleArray(wmat, TMath::Abs(nlmat));
@@ -141,19 +176,20 @@ void Engine::Mixture(Int_t& kmat, const char* name, Float_t* a, Float_t* z, Doub
   delete[] wmatDouble;
 }
 
-void Engine::Medium(Int_t& kmed, const char* name, Int_t nmat, Int_t isvol, Int_t ifield, Double_t fieldm, Double_t tmaxfd, Double_t stemax, Double_t deemax, Double_t epsil, Double_t stmin, Float_t* ubuf, Int_t nbuf)
+void MCReplayEngine::Medium(Int_t& kmed, const char* name, Int_t nmat, Int_t isvol, Int_t ifield, Double_t fieldm, Double_t tmaxfd, Double_t stemax, Double_t deemax, Double_t epsil, Double_t stmin, Float_t* ubuf, Int_t nbuf)
 {
-  kmed = mMediumCounter++;
+  auto ubufDouble = makeDoubleArray(ubuf, nbuf);
+  Medium(kmed, name, nmat, isvol, ifield, fieldm, tmaxfd, stemax, deemax, epsil, stmin, ubufDouble, nbuf);
+  delete[] ubufDouble;
+}
+
+void MCReplayEngine::Medium(Int_t& kmed, const char* name, Int_t nmat, Int_t isvol, Int_t ifield, Double_t fieldm, Double_t tmaxfd, Double_t stemax, Double_t deemax, Double_t epsil, Double_t stmin, Double_t* ubuf, Int_t nbuf)
+{
+  kmed = ++mMediumCounter;
   mGeoManager->Medium(name, kmed, nmat, isvol, ifield, fieldm, tmaxfd, stemax, deemax, epsil, stmin);
 }
 
-void Engine::Medium(Int_t& kmed, const char* name, Int_t nmat, Int_t isvol, Int_t ifield, Double_t fieldm, Double_t tmaxfd, Double_t stemax, Double_t deemax, Double_t epsil, Double_t stmin, Double_t* ubuf, Int_t nbuf)
-{
-  kmed = mMediumCounter++;
-  mGeoManager->Medium(name, kmed, nmat, isvol, ifield, fieldm, tmaxfd, stemax, deemax, epsil, stmin);
-}
-
-Int_t Engine::Gsvolu(const char* name, const char* shape, Int_t nmed, Double_t* upar, Int_t np)
+Int_t MCReplayEngine::Gsvolu(const char* name, const char* shape, Int_t nmed, Double_t* upar, Int_t np)
 {
   char nameOut[80];
   adaptToTGeoName(name, nameOut);
@@ -167,7 +203,7 @@ Int_t Engine::Gsvolu(const char* name, const char* shape, Int_t nmed, Double_t* 
   return vol->GetNumber();
 }
 
-Int_t Engine::Gsvolu(const char* name, const char* shape, Int_t nmed, Float_t* upar, Int_t np)
+Int_t MCReplayEngine::Gsvolu(const char* name, const char* shape, Int_t nmed, Float_t* upar, Int_t np)
 {
   auto uparDouble = makeDoubleArray(upar, np);
   auto id = Gsvolu(name, shape, nmed, uparDouble, np);
@@ -175,7 +211,7 @@ Int_t Engine::Gsvolu(const char* name, const char* shape, Int_t nmed, Float_t* u
   return id;
 }
 
-void Engine::Gsdvn(const char* name, const char* mother, Int_t ndiv, Int_t iaxis)
+void MCReplayEngine::Gsdvn(const char* name, const char* mother, Int_t ndiv, Int_t iaxis)
 {
   char nameOut[80];
   char nameMotherOut[80];
@@ -184,7 +220,7 @@ void Engine::Gsdvn(const char* name, const char* mother, Int_t ndiv, Int_t iaxis
   mGeoManager->Division(nameOut, nameMotherOut, iaxis, ndiv, 0, 0, 0, "n");
 }
 
-void Engine::Gsdvn2(const char* name, const char* mother, Int_t ndiv, Int_t iaxis, Double_t c0i, Int_t numed)
+void MCReplayEngine::Gsdvn2(const char* name, const char* mother, Int_t ndiv, Int_t iaxis, Double_t c0i, Int_t numed)
 {
   char nameOut[80];
   char nameMotherOut[80];
@@ -193,7 +229,7 @@ void Engine::Gsdvn2(const char* name, const char* mother, Int_t ndiv, Int_t iaxi
   mGeoManager->Division(nameOut, nameMotherOut, iaxis, ndiv, c0i, 0, numed, "nx");
 }
 
-void Engine::Gsdvt(const char* name, const char* mother, Double_t step, Int_t iaxis, Int_t numed, Int_t ndvmx)
+void MCReplayEngine::Gsdvt(const char* name, const char* mother, Double_t step, Int_t iaxis, Int_t numed, Int_t ndvmx)
 {
   char nameOut[80];
   char nameMotherOut[80];
@@ -202,7 +238,7 @@ void Engine::Gsdvt(const char* name, const char* mother, Double_t step, Int_t ia
   mGeoManager->Division(nameOut, nameMotherOut, iaxis, 0, 0, step, numed, "s");
 }
 
-void Engine::Gsdvt2(const char* name, const char* mother, Double_t step, Int_t iaxis, Double_t c0, Int_t numed, Int_t ndvmx)
+void MCReplayEngine::Gsdvt2(const char* name, const char* mother, Double_t step, Int_t iaxis, Double_t c0, Int_t numed, Int_t ndvmx)
 {
   char nameOut[80];
   char nameMotherOut[80];
@@ -211,7 +247,7 @@ void Engine::Gsdvt2(const char* name, const char* mother, Double_t step, Int_t i
   mGeoManager->Division(nameOut, nameMotherOut, iaxis, 0, c0, step, numed, "sx");
 }
 
-void Engine::Gspos(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly)
+void MCReplayEngine::Gspos(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly)
 {
   char nameOut[80];
   char nameMotherOut[80];
@@ -224,7 +260,7 @@ void Engine::Gspos(const char* name, Int_t nr, const char* mother, Double_t x, D
   mGeoManager->Node(nameOut, nr, nameMotherOut, x, y, z, irot, isOnly, upar);
 }
 
-void Engine::Gsposp(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly, Double_t* upar, Int_t np)
+void MCReplayEngine::Gsposp(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly, Double_t* upar, Int_t np)
 {
   char nameOut[80];
   char nameMotherOut[80];
@@ -236,20 +272,20 @@ void Engine::Gsposp(const char* name, Int_t nr, const char* mother, Double_t x, 
   mGeoManager->Node(nameOut, nr, nameMotherOut, x, y, z, irot, isOnly, upar, np);
 }
 
-void Engine::Gsposp(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly, Float_t* upar, Int_t np)
+void MCReplayEngine::Gsposp(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly, Float_t* upar, Int_t np)
 {
   auto uparDouble = makeDoubleArray(upar, np);
   Gsposp(name, nr, mother, x, y, z, irot, konly, uparDouble, np);
   delete[] uparDouble;
 }
 
-void Engine::Matrix(Int_t& krot, Double_t thetaX, Double_t phiX, Double_t thetaY, Double_t phiY, Double_t thetaZ, Double_t phiZ)
+void MCReplayEngine::Matrix(Int_t& krot, Double_t thetaX, Double_t phiX, Double_t thetaY, Double_t phiY, Double_t thetaZ, Double_t phiZ)
 {
   krot = mGeoManager->GetListOfMatrices()->GetEntriesFast();
   mGeoManager->Matrix(krot, thetaX, phiX, thetaY, phiY, thetaZ, phiZ);
 }
 
-Bool_t Engine::GetTransformation(const TString& volumePath, TGeoHMatrix& matrix)
+Bool_t MCReplayEngine::GetTransformation(const TString& volumePath, TGeoHMatrix& matrix)
 {
   // We have to preserve the modeler state
   mGeoManager->PushPath();
@@ -262,7 +298,7 @@ Bool_t Engine::GetTransformation(const TString& volumePath, TGeoHMatrix& matrix)
   return kTRUE;
 }
 
-Bool_t Engine::GetShape(const TString& volumePath, TString& shapeType, TArrayD& par)
+Bool_t MCReplayEngine::GetShape(const TString& volumePath, TString& shapeType, TArrayD& par)
 {
   Int_t npar;
   mGeoManager->PushPath();
@@ -508,7 +544,7 @@ Bool_t Engine::GetShape(const TString& volumePath, TString& shapeType, TArrayD& 
   return kFALSE;
 }
 
-Bool_t Engine::GetMaterial(const TString& volumeName, TString& name, Int_t& imat, Double_t& a, Double_t& z, Double_t& density, Double_t& radl, Double_t& inter, TArrayD& par)
+Bool_t MCReplayEngine::GetMaterial(const TString& volumeName, TString& name, Int_t& imat, Double_t& a, Double_t& z, Double_t& density, Double_t& radl, Double_t& inter, TArrayD& par)
 {
   auto vol = mGeoManager->GetVolume(volumeName.Data());
   if (!vol) {
@@ -531,7 +567,7 @@ Bool_t Engine::GetMaterial(const TString& volumeName, TString& name, Int_t& imat
   return kTRUE;
 }
 
-Bool_t Engine::GetMedium(const TString& volumeName, TString& name, Int_t& imed, Int_t& nmat, Int_t& isvol, Int_t& ifield, Double_t& fieldm, Double_t& tmaxfd, Double_t& stemax, Double_t& deemax, Double_t& epsil, Double_t& stmin, TArrayD& par)
+Bool_t MCReplayEngine::GetMedium(const TString& volumeName, TString& name, Int_t& imed, Int_t& nmat, Int_t& isvol, Int_t& ifield, Double_t& fieldm, Double_t& tmaxfd, Double_t& stemax, Double_t& deemax, Double_t& epsil, Double_t& stmin, TArrayD& par)
 {
   auto vol = mGeoManager->GetVolume(volumeName.Data());
   if (!vol)
@@ -556,7 +592,7 @@ Bool_t Engine::GetMedium(const TString& volumeName, TString& name, Int_t& imed, 
   return kTRUE;
 }
 
-Int_t Engine::VolId(const char* volName) const
+Int_t MCReplayEngine::VolId(const char* volName) const
 {
   auto uid{mGeoManager->GetUID(volName)};
   if (uid < 0) {
@@ -566,7 +602,7 @@ Int_t Engine::VolId(const char* volName) const
   return uid;
 }
 
-const char* Engine::VolName(Int_t id) const
+const char* MCReplayEngine::VolName(Int_t id) const
 {
   auto volume{mGeoManager->GetVolume(id)};
   if (!volume) {
@@ -576,7 +612,7 @@ const char* Engine::VolName(Int_t id) const
   return volume->GetName();
 }
 
-Int_t Engine::MediumId(const char* mediumName) const
+Int_t MCReplayEngine::MediumId(const char* mediumName) const
 {
   auto medium{mGeoManager->GetMedium(mediumName)};
   if (medium) {
@@ -585,12 +621,12 @@ Int_t Engine::MediumId(const char* mediumName) const
   return -1;
 }
 
-Int_t Engine::NofVolumes() const
+Int_t MCReplayEngine::NofVolumes() const
 {
   return mGeoManager->GetListOfVolumes()->GetEntriesFast() - 1;
 }
 
-Int_t Engine::VolId2Mate(Int_t id) const
+Int_t MCReplayEngine::VolId2Mate(Int_t id) const
 {
   auto volume{mGeoManager->GetVolume(id)};
   if (!volume) {
@@ -604,7 +640,7 @@ Int_t Engine::VolId2Mate(Int_t id) const
   return med->GetId();
 }
 
-Int_t Engine::NofVolDaughters(const char* volName) const
+Int_t MCReplayEngine::NofVolDaughters(const char* volName) const
 {
   auto volume{mGeoManager->GetVolume(volName)};
   if (!volume) {
@@ -614,7 +650,7 @@ Int_t Engine::NofVolDaughters(const char* volName) const
   return volume->GetNdaughters();
 }
 
-const char* Engine::VolDaughterName(const char* volName, Int_t i) const
+const char* MCReplayEngine::VolDaughterName(const char* volName, Int_t i) const
 {
   // Get volume
   auto volume{mGeoManager->GetVolume(volName)};
@@ -632,7 +668,7 @@ const char* Engine::VolDaughterName(const char* volName, Int_t i) const
   return volume->GetNode(i)->GetVolume()->GetName();
 }
 
-Int_t Engine::VolDaughterCopyNo(const char* volName, Int_t i) const
+Int_t MCReplayEngine::VolDaughterCopyNo(const char* volName, Int_t i) const
 {
   // Get volume
   auto volume{mGeoManager->GetVolume(volName)};
@@ -651,7 +687,7 @@ Int_t Engine::VolDaughterCopyNo(const char* volName, Int_t i) const
   return volume->GetNode(i)->GetNumber();
 }
 
-bool Engine::isPrimary(int trackId) const
+bool MCReplayEngine::isPrimary(int trackId) const
 {
   // TODO These checks should't be necessary when dealing with a sane MCStepLogger file
   if (trackId > -1 && trackId < mCurrentLookups->tracktoparent.size()) {
@@ -661,7 +697,7 @@ bool Engine::isPrimary(int trackId) const
   return false;
 }
 
-int Engine::getMediumId(int volId) const
+int MCReplayEngine::getMediumId(int volId) const
 {
   if (volId > -1 && volId < mCurrentLookups->volidtomedium.size()) {
     if (mCurrentLookups->volidtomedium[volId] &&
@@ -677,23 +713,26 @@ int Engine::getMediumId(int volId) const
   return -1;
 }
 
-Bool_t Engine::SetProcess(const char* flagName, Int_t flagValue)
+Bool_t MCReplayEngine::SetProcess(const char* flagName, Int_t flagValue)
 {
   return insertProcessOrCut(mProcessesGlobal, physics::namesCuts, flagName, flagValue);
 }
 
-Bool_t Engine::SetCut(const char* cutName, Double_t cutValue)
+Bool_t MCReplayEngine::SetCut(const char* cutName, Double_t cutValue)
 {
   return insertProcessOrCut(mCutsGlobal, physics::namesCuts, cutName, cutValue);
 }
 
-Int_t Engine::CurrentVolID(Int_t& copyNo) const
+Int_t MCReplayEngine::CurrentVolID(Int_t& copyNo) const
 {
+  if (mCurrentStep->outside) {
+    return 0;
+  }
   copyNo = mCurrentStep->copyNo;
   return mCurrentStep->volId;
 }
 
-Int_t Engine::CurrentVolOffID(Int_t off, Int_t& copyNo) const
+Int_t MCReplayEngine::CurrentVolOffID(Int_t off, Int_t& copyNo) const
 {
   if (off < 0 || off > mGeoManager->GetLevel()) {
     return 0;
@@ -709,12 +748,15 @@ Int_t Engine::CurrentVolOffID(Int_t off, Int_t& copyNo) const
   return node->GetVolume()->GetNumber();
 }
 
-const char* Engine::CurrentVolName() const
+const char* MCReplayEngine::CurrentVolName() const
 {
+  if (mCurrentStep->outside) {
+    return mGeoManager->GetTopVolume()->GetName();
+  }
   return mCurrentLookups->volidtovolname[mCurrentStep->volId]->c_str();
 }
 
-const char* Engine::CurrentVolOffName(Int_t off) const
+const char* MCReplayEngine::CurrentVolOffName(Int_t off) const
 {
   if (off < 0 || off > mGeoManager->GetLevel()) {
     return 0;
@@ -729,12 +771,54 @@ const char* Engine::CurrentVolOffName(Int_t off) const
   return node->GetVolume()->GetName();
 }
 
-const char* Engine::CurrentVolPath()
+const char* MCReplayEngine::CurrentVolPath()
 {
   return mGeoManager->GetPath();
 }
 
-void Engine::Gstpar(Int_t itmed, const char* param, Double_t parval)
+void MCReplayEngine::Gmtod(Double_t* xm, Double_t* xd, Int_t iflag)
+{
+  if (iflag == 1) {
+    gGeoManager->MasterToLocal(xm, xd);
+  } else {
+    gGeoManager->MasterToLocalVect(xm, xd);
+  }
+}
+
+void MCReplayEngine::Gmtod(Float_t* xm, Float_t* xd, Int_t iflag)
+{
+  Double_t xmDouble[3], xdDouble[3];
+  for (int i = 0; i < 3; i++) {
+    xmDouble[i] = xm[i];
+  }
+  Gmtod(xmDouble, xdDouble, iflag);
+  for (int i = 0; i < 3; i++) {
+    xd[i] = xdDouble[i];
+  }
+}
+
+void MCReplayEngine::Gdtom(Double_t* xd, Double_t* xm, Int_t iflag)
+{
+  if (iflag == 1) {
+    gGeoManager->LocalToMaster(xd, xm);
+  } else {
+    gGeoManager->LocalToMasterVect(xd, xm);
+  }
+}
+
+void MCReplayEngine::Gdtom(Float_t* xd, Float_t* xm, Int_t iflag)
+{
+  Double_t xmDouble[3], xdDouble[3];
+  for (int i = 0; i < 3; i++) {
+    xdDouble[i] = xd[i];
+  }
+  Gdtom(xdDouble, xmDouble, iflag);
+  for (int i = 0; i < 3; i++) {
+    xm[i] = xmDouble[i];
+  }
+}
+
+void MCReplayEngine::Gstpar(Int_t itmed, const char* param, Double_t parval)
 {
   if (insertProcessOrCut(mProcesses, physics::namesProcesses, mProcessesGlobal, itmed, param, (int)parval)) {
     return;
@@ -742,208 +826,221 @@ void Engine::Gstpar(Int_t itmed, const char* param, Double_t parval)
   insertProcessOrCut(mCuts, physics::namesCuts, mCutsGlobal, itmed, param, parval);
 }
 
-void Engine::loadCurrentCutsAndProcesses(int volId)
+void MCReplayEngine::loadCurrentCutsAndProcesses(int volId)
 {
   mCurrentProcesses = &mProcessesGlobal;
   mCurrentCuts = &mCutsGlobal;
   auto mediumId = getMediumId(volId);
   if (mediumId > -1) {
-    if (mProcesses[mediumId]) {
+    if (mProcesses.size() > mediumId && mProcesses[mediumId]) {
       mCurrentProcesses = mProcesses[mediumId];
     }
-    if (mCuts[mediumId]) {
+    if (mCuts.size() > mediumId && mCuts[mediumId]) {
       mCurrentCuts = mCuts[mediumId];
     }
   }
+  std::cout << "keepDueToSteps" << mCurrentCuts << std::endl;
 }
 
-bool Engine::keepDueToProcesses(const o2::StepInfo& step) const
+bool MCReplayEngine::keepDueToProcesses(const o2::StepInfo& step) const
 {
   return true;
 }
 
-bool Engine::keepDueToCuts(const o2::StepInfo& step) const
+bool MCReplayEngine::keepDueToCuts(const o2::StepInfo& step) const
 {
-  // if (std::abs(mCurrentLookups->tracktopdg[step.trackID]) == 22 && (*mCurrentCuts)[0] >= 0 && (*mCurrentCuts)[0] >= step.E) {
-  //   return false;
-  // }
-  // if (std::abs(mCurrentLookups->tracktopdg[step.trackID]) == 11 && (*mCurrentCuts)[1] >= 0 && (*mCurrentCuts)[1] >= step.E) {
-  //   return false;
-  // }
+  std::cout << "keepDueToSteps" << mCurrentCuts << std::endl;
+  if ((*mCurrentCuts)[11] >= 0 && step.E < (*mCurrentCuts)[11]) {
+    // check global energy cut
+    return false;
+  }
   return true;
 }
 
-bool Engine::keepStep(const o2::StepInfo& step) const
+bool MCReplayEngine::keepStep(const o2::StepInfo& step) const
 {
-  if (!keepDueToProcesses(step)) {
-    // TODO could combine both conditions with ||, however, maybe we want to extract the exact reason why this track was stopped
-    return false;
-  }
-  if (!keepDueToCuts(step)) {
-    // TODO could combine both conditions with ||, however, maybe we want to extract the exact reason why this track was stopped
-    return false;
-  }
-  return true; // to be implemented
+  return keepDueToCuts(step) && keepDueToProcesses(step);
 }
 
-bool Engine::initRun()
+bool MCReplayEngine::initRun()
 {
-  if(mIsInitialised) {
+  if (mIsInitialised) {
     return true;
   }
 
   mStepFile = TFile::Open(mStepLoggerFilename.c_str(), "READ");
-  if(mStepFile == nullptr) {
-    ::Error("::Engine::initRun", "Cannot open file %s", mStepLoggerFilename.c_str());
+  if (mStepFile == nullptr) {
+    ::Error("::MCReplayEngine::initRun", "Cannot open file %s", mStepLoggerFilename.c_str());
     return false;
   }
 
   auto tree = (TTree*)mStepFile->Get(mStepLoggerTreename.c_str());
   mStepBranch = tree->GetBranch("Steps");
   mLookupBranch = tree->GetBranch("Lookups");
-  if(!mStepBranch || !mLookupBranch) {
-    ::Error("::Engine::initRun", "Cannot get branches \"Steps\" and \"Lookups\"");
+  if (!mStepBranch || !mLookupBranch) {
+    ::Error("::MCReplayEngine::initRun", "Cannot get branches \"Steps\" and \"Lookups\"");
     return false;
   }
 
-  mMCStack = GetStack();
+  mStack = GetStack();
 
   mIsInitialised = true;
   return true;
 }
 
-void Engine::ProcessEvent(Int_t eventId)
+void MCReplayEngine::transportUserHitSecondary()
 {
-  // Push all particles to the stack already (we are not using it but an empty stack might cause the application to immediately stop without particles on the stack)
-  // FIXME
+  // For now we just start and finish this secondary. This is only done to pretend the transport for the user stack
+  fApplication->PreTrack();
+  fApplication->PostTrack();
+}
 
-  if(!initRun()) {
+void MCReplayEngine::ProcessEvent(Int_t eventId)
+{
+
+  if (!initRun()) {
     return;
   }
 
+  // prepare
   std::vector<o2::StepInfo>* steps = nullptr;
   mCurrentLookups = nullptr;
-
   mStepBranch->SetAddress(&steps);
   mLookupBranch->SetAddress(&mCurrentLookups);
   mStepBranch->GetEvent(mCurrentEvent);
   mLookupBranch->GetEvent(mCurrentEvent);
 
-  // Preparation
+  // whether or not to skip certain tracks
   std::vector<bool> skipTrack(mCurrentLookups->tracktopdg.size(), false);
+  // some caching to be able to run pre- and post-hooks at the right time
   int currentTrackId = -1;
-  bool currentIsPrimary = false;
+  // some caching to be able to update the TGeoManager state
   int previousVolId = -1;
-  // If we replay and in particular when certain tracks are killed during replay we have to make sure to obay the indexing og the user's stack
+  int previousCopyNo = -1;
+  // we need to make sure we follow the indexing of the user stack. During the original simulation, there might have been more tracks pushed than transported. In the replay case, we only have the tracks that have been originally transported. Hence, the indexing this time might be different.
   std::vector<int> userTrackId(mCurrentLookups->tracktopdg.size(), -1);
-  //std::vector<int> trackIDsToDo(mCurrentLookups->tracktopdg.size(), false);
-
-  fApplication->GeneratePrimaries();
-  int trackId;
-  while(auto particle = mMCStack->PopNextTrack(trackId)) {
-    // This is in principle only done to tell the outside stack that we will transport this
-    ::Info("Engine::ProcessEvent", "Popping primary with ID %d", trackId);
-    // TODO Keep this logic for now because we might need it again
-    userTrackId[trackId] = trackId;
-  }
 
   fApplication->BeginEvent();
+  fApplication->GeneratePrimaries();
 
-  // push all primaries already to be consistent with VMC behaviour
-  // for (auto& step : *mCurrentStepInfo) {
-  //   // by default just assign the previous track ID, the stack might then decide to do something else
-  //   userTrackId[step.trackID] = step.trackID;
-  //   if (step.newtrack && mCurrentLookups->tracktoparent[step.trackID] < 0) {
-  //     mMCStack->PushTrack(0, -1, mCurrentLookups->tracktopdg[step.trackID], -1., -1., -1., step.E, step.x, step.y, step.z, -1., -1., -1., -1., TMCProcess(step.prodprocess), userTrackId[step.trackID], 1., -1);
-  //   }
-  // }
+  // Remember how many primaries are expected to be transported
+  auto expectedNPrimaries = mStack->GetNprimary();
 
+  /* SOME REMARKS
 
-  // 1) let's pop all primaries right now in case toBeDone
-  // 2) need to skip all children not somehow related to any parent which is supposed to be transported here
-  int beginPrimaries{0};
-  int finishPrimaries{0};
+  1. Steps are expected to be grouped together track-by-track (that comes from the MCStepLogger and will only work properly for the serial simulation run)
+  2. Therefore, if a step with a different track ID is reached, it is assumed that the previous track is finished
+  3. Since in the original reference un, some secondaries might have been pushed to the user stack but not transported, we comply with the track ID assignement of the user stack in a replay run
+     See also comments in the corresponding section below
+  4. Whenever a new node (different volume ID or copy number) is entered, we let the TGeoManager find that node (see further comments below)
+  5. The current approach definitely works for GEANT3 in which case the next primary is popped and transported only after all secondaries of the previous primary have been transported.
+     In that case TVirtualMCApplication::FinishPrimary() is called after the last secondary and before the next primary
+     ==> Might need some refinement for GEANT4
+     ==> TODO Most definitely, the geometry construction between GEANT3 and GEANT4 differs, so we find different volume IDs, in particular for sensitive volumes ==> NEeds fixing/clarification
+
+  In case no additional cuts are applied during the replay:
+  1. At least with GEANT3 reference runs, steps are exactly reproduced comparing the reference run and a replay
+  2. hits are exactly reproduced for each replay run
+  */
 
   for (const auto& step : *steps) {
-    // we need to skip all primaries which are not
-    // loop over all steps of one event
 
+    // TODO This should not happen. (see comment in header file for these flags)
     if (mIsEventStopped) {
       mIsEventStopped = false;
       return;
     }
 
-    if (mIsTrackStopped || skipTrack[step.trackID] || (mCurrentLookups->tracktoparent[step.trackID] > -1 && skipTrack[mCurrentLookups->tracktoparent[step.trackID]]) || !keepStep(step)) {
-      // even if that track is not flagged to be skipped, the parent track might be, so set it to true also in that case to recursively guarantee that we skip the whole history of a killed track.
-      // In that case, this is a child track being a potential parent to other tracks which must not be transported.
+    // check whether track itself or parent was flagged.
+    // Flag this track to be skipped in case the parent has been flagged.
+    // NOTE We are not checking mIsTrackStopped, that is done after each step separately
+    if (skipTrack[step.trackID] || (mCurrentLookups->tracktoparent[step.trackID] > -1 && skipTrack[mCurrentLookups->tracktoparent[step.trackID]])) {
       skipTrack[step.trackID] = true;
       continue;
     }
 
-    // Set this before any method from the application is called
-    mCurrentStep = const_cast<o2::StepInfo*>(&step);
-
-    if (step.volId != previousVolId) {
+    if (step.volId != previousVolId || step.copyNo != previousCopyNo) {
       // find the correct set of cuts and processes for this volume
       loadCurrentCutsAndProcesses(step.volId);
       previousVolId = step.volId;
+      previousCopyNo = step.copyNo;
+      // We need the navigator in the current TGeoNode in order to perform tasks like CurrentVolOffID.
       // TODO Can we find a cheaper way of doing that?
-      mGeoManager->FindNode(step.volId);
+      // It does not seem to be possible to just get a TGeoNode even if the volume ID and copy number are known...
+      // Indeed, that could be a cheaper way but for the moment we stick to the TGeoManager
+      // NOTE/TODO Actually, this could MAYBE go wrong hence finding the previous volume, for instance in case the step was made close to/at the boundary
+      mGeoManager->FindNode(step.x, step.y, step.z);
     }
+
+    if (!keepStep(step)) {
+      // We can only do it now after the current volume and hence medium have been found including the loading of current cuts and processes
+      skipTrack[step.trackID] = true;
+      continue;
+    }
+
+    // NOW PERFORM EVERYTHIN NECESSARY TO START / FINISH A TRACK
 
     if (currentTrackId != step.trackID) {
-
+      // Found a new track
+      auto prim = isPrimary(step.trackID);
       if (currentTrackId > -1) {
-        // there was a track before
-        if (currentIsPrimary) {
-          fApplication->FinishPrimary();
-          std::cout << "### FINISH PRIMARY " << finishPrimaries++ << " with ID " << currentTrackId << " ###" << std::endl;
-        }
+        // only invoke if there has been at least 1 track before
         fApplication->PostTrack();
+        if (prim) {
+          // finish previous primary only in case all its secondary tracks have been transported and a new primary is about to be transported
+          fApplication->FinishPrimary();
+        }
       }
-      mIsTrackStopped = false;
+
+      if (!prim) {
+        // only push track is a secondary
+        // by default just assign the MCStepLogger track ID, but the user stack might then decide to do something else
+        userTrackId[step.trackID] = step.trackID;
+        mStack->PushTrack(1, userTrackId[mCurrentLookups->tracktoparent[step.trackID]], mCurrentLookups->tracktopdg[step.trackID], step.px, step.py, step.pz, step.E, step.x, step.y, step.z, step.t, 1., 1., 1., TMCProcess(step.prodprocess), userTrackId[step.trackID], 1., 0);
+        mStack->PopNextTrack(userTrackId[step.trackID]);
+      } else {
+        // We ignore all tracks which were pushed somehow during hit creation, for instance based on an RNG. If we wouldn't do that, it would lead to an incoherent stack compared to the logged steps
+        // That indeed happens in case of the O2 TRD
+        int popTrackId;
+        mStack->PopNextTrack(popTrackId);
+        // NOTE Only in case of primaires we assume their indexing to be 0...nPrimaries-1
+        while (popTrackId >= expectedNPrimaries) {
+          // In such a case there are secondaries pushed during hit creation...
+          transportUserHitSecondary();
+          mStack->PopNextTrack(popTrackId);
+        }
+        userTrackId[step.trackID] = popTrackId;
+      }
+
+      currentTrackId = step.trackID;
+      mStack->SetCurrentTrack(userTrackId[step.trackID]);
       mCurrentTrackLength = 0.;
 
-      // This is used internally
-      currentTrackId = step.trackID;
-
-      // If primary, it should have the same ID as during original simulation since primaries are always pushed at the beginning all at once. The same we do here (see above)
-      if (!isPrimary(currentTrackId)) {
-        // by default just assign the MCStepLogger track ID, the stack might then decide to do something else
-        // here we need also be careful to set the correct parent comlying with the user stack indexing
-        userTrackId[step.trackID] = step.trackID;
-        mMCStack->PushTrack(0, userTrackId[mCurrentLookups->tracktoparent[step.trackID]], mCurrentLookups->tracktopdg[step.trackID], step.px, step.py, step.pz, step.E, step.x, step.y, step.z, step.t, 1., 1., 1., TMCProcess(step.prodprocess), userTrackId[step.trackID], 1., -1);
-      }
-
-      // Need to set from the mapped user track ID because we don't know the internals of the indexing of that stack but we have to comply with it
-      mMCStack->SetCurrentTrack(userTrackId[step.trackID]);
-
-      fApplication->PreTrack();
-
-      currentIsPrimary = false;
-      if (isPrimary(currentTrackId)) {
+      if (prim) {
         fApplication->BeginPrimary();
-        currentIsPrimary = true;
-        std::cout << "### BEGIN PRIMARY " << beginPrimaries++ << " with ID " << currentTrackId << " ###" << std::endl;
       }
+      fApplication->PreTrack();
+      // We fix the RNG so in case the hits are somehow based on that, the hits among different Replay runs are exactly reproduced
+      gRandom->SetSeed(makeHash(step));
     }
 
-    // TODO That seems to be the correct way of implementing.
-    // However, should we do it before or after calling VMC::Stepping?
     mCurrentTrackLength += step.step;
+    mCurrentStep = const_cast<o2::StepInfo*>(&step);
 
-    // TODO Maybe needed to find out which hit logic is used now by O2?!
     fApplication->Stepping();
+
+    if (mIsTrackStopped) {
+      ::Warning("MCReplayEngine::ProcessEvent", "Track %d was stopped. That should usually not happen", userTrackId[step.trackID]);
+      skipTrack[step.trackID] = true;
+      mIsTrackStopped = false;
+      continue;
+    }
   }
 
-  // Finish last track
-  if (currentIsPrimary) {
-    fApplication->FinishPrimary();
-    std::cout << "### FINISH PRIMARY " << finishPrimaries << " with ID " << currentTrackId << " ###" << std::endl;
-  }
+  // Finish last track and the entire event
   fApplication->PostTrack();
+  fApplication->FinishPrimary();
 
-  // Finish this event
   fApplication->FinishEvent();
 
   delete steps;
@@ -952,10 +1049,9 @@ void Engine::ProcessEvent(Int_t eventId)
   mCurrentEvent++;
 }
 
-
-Bool_t Engine::ProcessRun(Int_t nevent)
+Bool_t MCReplayEngine::ProcessRun(Int_t nevent)
 {
-  for(int i = 0; i < nevent; i++) {
+  for (int i = 0; i < nevent; i++) {
     ProcessEvent(mCurrentEvent);
   }
   return kTRUE;

@@ -140,7 +140,7 @@ StepInfo::StepInfo(TVirtualMC* mc)
   entered = mc->IsTrackEntering();
   newtrack = mc->IsNewTrack();
 
-  if(newtrack) {
+  if (newtrack) {
     lookupstructures.setTrackCharge(trackID, mc->TrackCharge());
     lookupstructures.setTrackMass(trackID, mc->TrackMass());
   }

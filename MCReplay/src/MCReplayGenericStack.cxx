@@ -11,28 +11,23 @@
 
 #include <TParticle.h>
 
-#include "TMCReplay/GenericStack.h"
+#include "MCReplay/MCReplayGenericStack.h"
 
-ClassImp(tmcreplay::GenericStack);
+ClassImp(mcreplay::MCReplayGenericStack);
 
-using namespace tmcreplay;
+using namespace mcreplay;
 
-GenericStack::GenericStack()
-  : TVirtualMCStack{}
-{
-}
-
-GenericStack::~GenericStack()
+MCReplayGenericStack::~MCReplayGenericStack()
 {
   clear();
 }
 
-void GenericStack::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
-                             Double_t px, Double_t py, Double_t pz, Double_t e,
-                             Double_t vx, Double_t vy, Double_t vz, Double_t tof,
-                             Double_t polx, Double_t poly, Double_t polz,
-                             TMCProcess mech, Int_t& ntr, Double_t weight,
-                             Int_t is)
+void MCReplayGenericStack::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
+                                     Double_t px, Double_t py, Double_t pz, Double_t e,
+                                     Double_t vx, Double_t vy, Double_t vz, Double_t tof,
+                                     Double_t polx, Double_t poly, Double_t polz,
+                                     TMCProcess mech, Int_t& ntr, Double_t weight,
+                                     Int_t is)
 {
   // We are not setting the track number but use the same indexing used before.
   // Hence, the passed value of ntr is assumed to be already the correct ID
@@ -43,38 +38,38 @@ void GenericStack::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
   particle->SetWeight(weight);
   particle->SetUniqueID(mech);
   if (parent < 0) {
-    fNPrimaries++;
+    mNPrimaries++;
   }
   insertParticle(particle, ntr);
 }
 
-void GenericStack::SetCurrentTrack(Int_t trackNumber)
+void MCReplayGenericStack::SetCurrentTrack(Int_t trackNumber)
 {
-  fCurrentTrackId = trackNumber;
-  fCurrentParticle = fParticles[trackNumber];
-  fCurrentParentTrackId = fCurrentParticle->GetFirstMother();
+  mCurrentTrackId = trackNumber;
+  mCurrentParticle = mParticles[trackNumber];
+  mCurrentParentTrackId = mCurrentParticle->GetFirstMother();
 }
 
-void GenericStack::clear()
+void MCReplayGenericStack::clear()
 {
-  for (auto& p : fParticles) {
+  for (auto& p : mParticles) {
     delete p;
   }
-  fParticles.clear();
-  fCurrentTrackId = -1;
-  fCurrentParentTrackId = -1;
-  fNPrimaries = 0;
+  mParticles.clear();
+  mCurrentTrackId = -1;
+  mCurrentParentTrackId = -1;
+  mNPrimaries = 0;
 }
 
-void GenericStack::newEvent()
+void MCReplayGenericStack::newEvent()
 {
   clear();
 }
 
-void GenericStack::insertParticle(TParticle* particle, int id)
+void MCReplayGenericStack::insertParticle(TParticle* particle, int id)
 {
-  if (fParticles.size() <= id) {
-    fParticles.resize(id + 1, nullptr);
+  if (mParticles.size() <= id) {
+    mParticles.resize(id + 1, nullptr);
   }
-  fParticles[id] = particle;
+  mParticles[id] = particle;
 }

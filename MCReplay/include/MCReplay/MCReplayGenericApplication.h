@@ -9,31 +9,33 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-#ifndef TMC_REPLAY_GENERIC_APPLICATION_H
-#define TMC_REPLAY_GENERIC_APPLICATION_H
+#ifndef MC_REPLAY_GENERIC_APPLICATION_H
+#define MC_REPLAY_GENERIC_APPLICATION_H
 
 #include <string>
 
 #include <TVirtualMCApplication.h>
 
+#include "MCReplay/MCReplayEvGen.h"
+
 class TGeoManager;
 
-namespace tmcreplay
+namespace mcreplay
 {
-class GenericStack;
+class MCReplayGenericStack;
 }
 
-namespace tmcreplay
+namespace mcreplay
 {
 // K is type of user kernel
-class GenericApplication : public TVirtualMCApplication
+class MCReplayGenericApplication : public TVirtualMCApplication
 {
 
  public:
-  GenericApplication(const std::string& geoFilename, const std::string& geoKeyname);
+  MCReplayGenericApplication(const std::string& geoFilename, const std::string& geoKeyname, const std::string& stepFilename, const std::string& stepTreename);
 
   /// For now just default destructor
-  virtual ~GenericApplication() = default;
+  virtual ~MCReplayGenericApplication() = default;
 
   // ConstructGeometry is the only implementation of a pure virtual method that does something at the moment
 
@@ -43,7 +45,7 @@ class GenericApplication : public TVirtualMCApplication
 
   virtual void InitGeometry() override { ; }
 
-  virtual void GeneratePrimaries() override { ; }
+  virtual void GeneratePrimaries() override;
 
   virtual void BeginEvent() override;
 
@@ -51,10 +53,7 @@ class GenericApplication : public TVirtualMCApplication
 
   virtual void PreTrack() override { ; }
 
-  virtual void Stepping() override
-  {
-    ;
-  }
+  virtual void Stepping() override { ; }
 
   virtual void PostTrack() override { ; }
 
@@ -62,23 +61,25 @@ class GenericApplication : public TVirtualMCApplication
 
   virtual void FinishEvent() override { ; }
 
-  void setStack(GenericStack* stack)
+  void setStack(MCReplayGenericStack* stack)
   {
-    fStack = stack;
+    mStack = stack;
   }
 
  private:
   // Filename where geometry can be found
-  std::string fGeoFilename;
+  std::string mGeoFilename;
   // Keyname under which geometry can be found inside the above file
-  std::string fGeoKeyname;
+  std::string mGeoKeyname;
   // local pointer to ROOT's geometry manager
-  TGeoManager* fGeoManager;
+  TGeoManager* mGeoManager;
   // stack
-  GenericStack* fStack;
+  MCReplayGenericStack* mStack;
+  // primary generator
+  MCReplayEvGen mPrimGen;
 
-  ClassDefOverride(GenericApplication, 1);
+  ClassDefOverride(MCReplayGenericApplication, 1);
 };
-} // end namespace tmcreplay
+} // end namespace mcreplay
 
-#endif /* TMC_REPLAY_GENERIC_APPLICATION_H */
+#endif /* MC_REPLAY_GENERIC_APPLICATION_H */

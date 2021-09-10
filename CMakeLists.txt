@@ -12,17 +12,15 @@
 # @author Sandro Wenzel
 # @brief  cmake setup for module Utilities/MCStepLogger
 
-set(MODULE_NAME "MCStepLogger")
-
 # Minimum version of CMake
 CMAKE_MINIMUM_REQUIRED(VERSION 3.15.0 FATAL_ERROR)
 
-project(${MODULE_NAME})
+project(MCStepLogger)
 set(CMAKE_MODULE_PATH
     ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake)
 
-option(MCStepLogger_BUILD_TMCReplay "Build TMCReplay engine" ON)
+option(MCStepLogger_BUILD_MCReplay "Build MCReplay engine" ON)
 option(MCStepLogger_BUILD_TESTS "Control whether tests are built" OFF)
 
 include(CTest)
@@ -96,9 +94,9 @@ set(CMAKE_INSTALL_LIBDIR ${INSTALL_LIB_DIR})
 set(CMAKE_INSTALL_INCLUDEDIR ${INSTALL_INC_DIR})
 
 add_subdirectory(MCStepLogger)
-if(MCStepLogger_BUILD_TMCReplay)
-  add_subdirectory(TMCReplay)
-endif(MCStepLogger_BUILD_TMCReplay)
+if(MCStepLogger_BUILD_MCReplay)
+  add_subdirectory(MCReplay)
+endif()
 
 ##################################################
 # Do final global installation and configuration #
@@ -111,4 +109,4 @@ configure_file(
     "${PROJECT_BINARY_DIR}/MCStepLoggerConfig.cmake" @ONLY)
 install(FILES
     "${PROJECT_BINARY_DIR}/MCStepLoggerConfig.cmake"
-    DESTINATION ${INSTALL_CMAKE_DIR})
+    DESTINATION ${INSTALL_CMAKE_DIR}) 
