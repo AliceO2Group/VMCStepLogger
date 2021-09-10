@@ -29,7 +29,7 @@ using namespace o2::mcstepanalysis;
 
 namespace bpo = boost::program_options;
 
-std::vector<std::string> availableCommands = { "analyze", "checkFile" };
+std::vector<std::string> availableCommands = {"analyze", "checkFile"};
 
 // print help message
 void helpMessage(const bpo::options_description& desc)

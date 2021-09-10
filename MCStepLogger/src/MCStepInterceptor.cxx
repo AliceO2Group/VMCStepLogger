@@ -29,6 +29,10 @@ class TVirtualMagField;
 
 DECLARE_INTERCEPT_SYMBOLS(FairMCApplication)
 DECLARE_INTERCEPT_SYMBOLS(AliMC)
+namespace mcreplay
+{
+DECLARE_INTERCEPT_SYMBOLS(MCReplayGenericApplication)
+}
 
 // same for field
 #define DECLARE_INTERCEPT_FIELD_SYMBOLS(FIELD)       \
@@ -44,7 +48,7 @@ namespace field
 {
 DECLARE_INTERCEPT_FIELD_SYMBOLS(MagneticField);
 }
-}
+} // namespace o2
 DECLARE_INTERCEPT_FIELD_SYMBOLS(AliMagF);
 
 extern "C" void performLogging(TVirtualMCApplication*);
@@ -83,12 +87,15 @@ extern "C" void initLogger();
 // the runtime will now dispatch to these functions due to LD_PRELOAD
 INTERCEPT_STEPPING(FairMCApplication, "libBase", "_ZN17FairMCApplication8SteppingEv")
 INTERCEPT_STEPPING(AliMC, "libSTEER", "_ZN5AliMC8SteppingEv")
+INTERCEPT_STEPPING(mcreplay::MCReplayGenericApplication, "libMCReplayCore", "_ZN8mcreplay26MCReplayGenericApplication8SteppingEv")
 
 INTERCEPT_FINISHEVENT(FairMCApplication, "libBase", "_ZN17FairMCApplication11FinishEventEv")
 INTERCEPT_FINISHEVENT(AliMC, "libSTEER", "_ZN5AliMC11FinishEventEv")
+INTERCEPT_FINISHEVENT(mcreplay::MCReplayGenericApplication, "libMCReplayCore", "_ZN8mcreplay26MCReplayGenericApplication11FinishEventEv")
 
 INTERCEPT_GEOMETRYINIT(FairMCApplication, "libBase", "_ZN17FairMCApplication17ConstructGeometryEv")
 INTERCEPT_GEOMETRYINIT(AliMC, "libSTEER", "_ZN5AliMC17ConstructGeometryEv")
+INTERCEPT_GEOMETRYINIT(mcreplay::MCReplayGenericApplication, "libMCReplayCore", "_ZN8mcreplay26MCReplayGenericApplication17ConstructGeometryEv")
 
 #define INTERCEPT_FIELD(FIELD, LIB, SYMBOL)                     \
   void FIELD::Field(const double* point, double* bField)        \
@@ -104,6 +111,6 @@ namespace field
 {
 INTERCEPT_FIELD(MagneticField, "libO2Field", "_ZN2o25field13MagneticField5FieldEPKdPd");
 }
-}
+} // namespace o2
 // for AliRoot
 INTERCEPT_FIELD(AliMagF, "libSTEERBase", "_ZN7AliMagF5FieldEPKdPd")

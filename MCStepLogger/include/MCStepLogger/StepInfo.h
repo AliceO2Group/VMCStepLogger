@@ -59,6 +59,8 @@ struct StepLookups {
   std::vector<std::string*> volidtomedium;
   std::vector<bool> volidtoissensitive; // keep track of which volume is sensitive
   std::vector<int> tracktopdg;
+  std::vector<float> tracktocharge;
+  std::vector<float> tracktomass;
   std::vector<int> tracktoparent; // when parent is -1 we mean primary
   std::vector<int> stepcounterpertrack;
 
@@ -87,6 +89,22 @@ struct StepLookups {
       std::cerr << "Warning: Seeing more than one pdg (prev: " << prev << " curr: " << pdg << ") for same trackID " << trackindex << "\n";
     }
     tracktopdg[trackindex] = pdg;
+  }
+
+  void setTrackCharge(int trackindex, float c)
+  {
+    if (trackindex >= tracktocharge.size()) {
+      tracktocharge.resize(trackindex + 1, 0.);
+    }
+    tracktocharge[trackindex] = c;
+  }
+
+  void setTrackMass(int trackindex, float m)
+  {
+    if (trackindex >= tracktomass.size()) {
+      tracktomass.resize(trackindex + 1, 0.);
+    }
+    tracktomass[trackindex] = m;
   }
 
   void incStepCount(int trackindex)
@@ -155,6 +173,8 @@ struct StepLookups {
     tracktopdg.clear();
     stepcounterpertrack.clear();
     tracktoenergy.clear();
+    tracktocharge.clear();
+    tracktomass.clear();
   }
 
  private:
@@ -190,18 +210,27 @@ struct StepInfo {
   int volId = -1;  // keep another branch somewhere mapping this to name, medium, etc.
   int copyNo = -1;
   int trackID = -1;
+  float t = 0.;
   float x = 0.;
   float y = 0.;
   float z = 0.;
   float E = 0.;
+  float px = 0.;
+  float py = 0.;
+  float pz = 0.;
+  float edep = 0.;
+  float mass = 0.;
   float step = 0.;
   float maxstep = 0.;
   int nsecondaries = 0;
   int prodprocess = -1;           // prod process of current track
   int nprocessesactive = 0;       // number of active processes
+  bool disappeared = false;       // if track disappeared
   bool stopped = false;           // if track was stopped during last step
   bool entered = false;           // if track entered volume during last step
   bool exited = false;            // if track exited volume during last step
+  bool inside = false;            // if track is inside world
+  bool outside = false;           // if track is outside world
   bool newtrack = false;          // if track is new
   bool insensitiveRegion = false; // whether step done in sensitive region
 
@@ -215,7 +244,7 @@ struct StepInfo {
   static std::vector<std::string*> volidtomodulevector;
 
   static StepLookups lookupstructures;
-  ClassDefNV(StepInfo, 2);
+  ClassDefNV(StepInfo, 3);
 };
 
 struct MagCallInfo {
