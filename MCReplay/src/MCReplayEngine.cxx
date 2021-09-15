@@ -908,13 +908,13 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
 
   // whether or not to skip certain tracks
   std::vector<bool> skipTrack(mCurrentLookups->tracktopdg.size(), false);
+  // we need to make sure we follow the indexing of the user stack. During the original simulation, there might have been more tracks pushed than transported. In the replay case, we only have the tracks that have been originally transported. Hence, the indexing this time might be different.
+  std::vector<int> userTrackId(mCurrentLookups->tracktopdg.size(), -1);
   // some caching to be able to run pre- and post-hooks at the right time
   int currentTrackId = -1;
   // some caching to be able to update the TGeoManager state
   int previousVolId = -1;
   int previousCopyNo = -1;
-  // we need to make sure we follow the indexing of the user stack. During the original simulation, there might have been more tracks pushed than transported. In the replay case, we only have the tracks that have been originally transported. Hence, the indexing this time might be different.
-  std::vector<int> userTrackId(mCurrentLookups->tracktopdg.size(), -1);
 
   fApplication->BeginEvent();
   fApplication->GeneratePrimaries();
@@ -939,18 +939,25 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
   2. hits are exactly reproduced for each replay run
   */
 
+  unsigned int nStepsKept{0};
+
   for (const auto& step : *steps) {
 
     // TODO This should not happen. (see comment in header file for these flags)
     if (mIsEventStopped) {
       mIsEventStopped = false;
+      ::Warning("MCReplayEngine::ProcessEvent", "Event %d was stopped. That should usually not happen", mCurrentEvent);
+      delete steps;
+      delete mCurrentLookups;
       return;
     }
 
-    // check whether track itself or parent was flagged.
-    // Flag this track to be skipped in case the parent has been flagged.
-    // NOTE We are not checking mIsTrackStopped, that is done after each step separately
-    if (skipTrack[step.trackID] || (mCurrentLookups->tracktoparent[step.trackID] > -1 && skipTrack[mCurrentLookups->tracktoparent[step.trackID]])) {
+    // skip if flagged and increment
+    if (skipTrack[step.trackID]) {
+      continue;
+    }
+    if (mCurrentLookups->tracktoparent[step.trackID] > -1 && skipTrack[mCurrentLookups->tracktoparent[step.trackID]]) {
+      // skip recursively in case parent was skipped, only affects secondaries of course
       skipTrack[step.trackID] = true;
       continue;
     }
@@ -968,17 +975,20 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
       mGeoManager->FindNode(step.x, step.y, step.z);
     }
 
-    if (!keepStep(step)) {
-      // We can only do it now after the current volume and hence medium have been found including the loading of current cuts and processes
-      skipTrack[step.trackID] = true;
-      continue;
-    }
-
     // NOW PERFORM EVERYTHIN NECESSARY TO START / FINISH A TRACK
+
+    if (currentTrackId == step.trackID && mIsTrackStopped) {
+      // as the warning says, it should not happen but could (e.g. due to double vs. float precision)
+      // but mainly due to the fact that the RNG (TRandom) in the reference run and in this replay do not have the same seeding
+      ::Warning("MCReplayEngine::ProcessEvent", "Track %d was stopped (PDG %d). That should usually not happen", userTrackId[step.trackID], mCurrentLookups->tracktopdg[step.trackID]);
+      mIsTrackStopped = false;
+    }
 
     if (currentTrackId != step.trackID) {
       // Found a new track
+
       auto prim = isPrimary(step.trackID);
+
       if (currentTrackId > -1) {
         // only invoke if there has been at least 1 track before
         fApplication->PostTrack();
@@ -989,7 +999,14 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
       }
 
       if (!prim) {
-        // only push track is a secondary
+        // decide to skip this secondary immediately, primaries must be popped first since otherwise we might run into inconsitencies with the user stack
+        // therefore, it looks as if this secondary never appeared
+        if (!keepStep(step)) {
+          skipTrack[step.trackID] = true;
+          continue;
+        }
+
+        // only push track if it is a secondary
         // by default just assign the MCStepLogger track ID, but the user stack might then decide to do something else
         userTrackId[step.trackID] = step.trackID;
         mStack->PushTrack(1, userTrackId[mCurrentLookups->tracktoparent[step.trackID]], mCurrentLookups->tracktopdg[step.trackID], step.px, step.py, step.pz, step.E, step.x, step.y, step.z, step.t, 1., 1., 1., TMCProcess(step.prodprocess), userTrackId[step.trackID], 1., 0);
@@ -1016,6 +1033,13 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
         fApplication->BeginPrimary();
       }
       fApplication->PreTrack();
+
+      if (!keepStep(step)) {
+        // This is for primaries since secondaries would have been skipped already above
+        skipTrack[step.trackID] = true;
+        continue;
+      }
+
       // We fix the RNG so in case the hits are somehow based on that, the hits among different Replay runs are exactly reproduced
       gRandom->SetSeed(makeHash(step));
     }
@@ -1023,14 +1047,8 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
     mCurrentTrackLength += step.step;
     mCurrentStep = const_cast<o2::StepInfo*>(&step);
 
+    nStepsKept++;
     fApplication->Stepping();
-
-    if (mIsTrackStopped) {
-      ::Warning("MCReplayEngine::ProcessEvent", "Track %d was stopped. That should usually not happen", userTrackId[step.trackID]);
-      skipTrack[step.trackID] = true;
-      mIsTrackStopped = false;
-      continue;
-    }
   }
 
   // Finish last track and the entire event
@@ -1038,6 +1056,9 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
   fApplication->FinishPrimary();
 
   fApplication->FinishEvent();
+
+  auto nStepsSkipped = steps->size() - nStepsKept;
+  std::cout << "Original number, skipped, kept, skipped fraction and kept fraction of steps: " << steps->size() << " " << nStepsSkipped << " " << nStepsKept << " " << static_cast<float>(nStepsSkipped) / steps->size() << " " << static_cast<float>(nStepsSkipped) / steps->size() << "\n";
 
   delete steps;
   delete mCurrentLookups;
