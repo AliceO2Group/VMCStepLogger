@@ -13,7 +13,6 @@
 #define MC_REPLAY_ENGINE_H
 
 #include <vector>
-#include <unordered_map>
 #include <string>
 
 #include <TString.h>
@@ -35,6 +34,8 @@ class TGeoNode;
 
 namespace mcreplay
 {
+
+typedef bool (*user_keep_step_type)(const o2::StepInfo&, const o2::StepLookups*);
 
 class MCReplayEngine : public TVirtualMC
 {
@@ -1092,13 +1093,20 @@ class MCReplayEngine : public TVirtualMC
     mStepLoggerTreename = treename;
   }
 
+  // aacept a macro path from where to load a custom function whether or not to keep a step
+  void setUserKeepStepMacroPath(const std::string& path)
+  {
+    mUserKeepStepMacroPath = path;
+  }
+
  private:
   // init the run, used to guarantee that both ProcessRun and ProcessEvent
   // work just fine
   bool initRun();
 
-  // TODO Can most likely be removed
-  void adaptToTGeoName(const char* nameIn, char* nameOut) const;
+  // map volume IDs assigned by the TGeoManager (replay engine) to those assigned by the engine used in the reference run
+  Int_t correctGeoVolID(Int_t geoVolId) const;
+  Int_t correctVMCVolID(Int_t vmcVolId) const;
 
   // That is just a helper function to address some of the
   // interactions with the TGeoManager
@@ -1130,7 +1138,6 @@ class MCReplayEngine : public TVirtualMC
   {
     auto paramIndex = physics::paramToIndex(allParamsNames, paramName);
     if (paramIndex < 0) {
-      Warning("Could not set parameter %s, unknown and therefore skipped", paramName);
       return false;
     }
 
@@ -1151,7 +1158,6 @@ class MCReplayEngine : public TVirtualMC
   {
     auto paramIndex = physics::paramToIndex(allParamsNames, paramName);
     if (paramIndex < 0) {
-      Warning("Could not set parameter %s, unknown and therefore skipped", paramName);
       return false;
     }
     insertInto[paramIndex] = parval;
@@ -1174,6 +1180,11 @@ class MCReplayEngine : public TVirtualMC
   std::string mStepLoggerFilename;
   std::string mStepLoggerTreename;
 
+  // mapping volume IDs correctly; a reference run might assign other volume IDs than those which would be assigned only by the TGeoManager. Hence, we need to make sure that - whatever engine was used before - we mimic the exact same volume IDs. Otherwise, the logged IDs and those assigned by this engine based on the TGeoManager are not aligned
+  std::vector<int> mVolIDMap;
+  std::vector<int> mVolIDMapInverse;
+  bool mNeedVolIdMapping = false;
+
   // pointer to opened step file
   TFile* mStepFile = nullptr;
 
@@ -1189,6 +1200,11 @@ class MCReplayEngine : public TVirtualMC
   // to address all the needs of the TVirtualMC interfaces
   o2::StepLookups* mCurrentLookups = nullptr;
   o2::StepInfo* mCurrentStep = nullptr;
+
+  // keep track of tracks to be skipped
+  std::vector<bool> mSkipTrack;
+  // keep track of track ID assigned by user stack
+  std::vector<int> mUserTrackId;
 
   // current event ID
   int mCurrentEvent = 0;
@@ -1208,6 +1224,10 @@ class MCReplayEngine : public TVirtualMC
   std::vector<Int_t>* mCurrentProcesses = nullptr;
   // point to the current map of cuts
   std::vector<Double_t>* mCurrentCuts = nullptr;
+
+  // a user defined cut function, return true if step should be kept, false otherwise
+  std::string mUserKeepStepMacroPath;
+  user_keep_step_type* mUserKeepStep = nullptr;
 
   // local pointer to ROOT's geometry manager
   TGeoManager* mGeoManager = nullptr;

@@ -57,6 +57,7 @@ struct StepLookups {
   std::vector<std::string*> volidtovolname;
   std::vector<std::string*> volidtomodule;
   std::vector<std::string*> volidtomedium;
+  std::vector<int> geovolidtovmcvolid;
   std::vector<bool> volidtoissensitive; // keep track of which volume is sensitive
   std::vector<int> tracktopdg;
   std::vector<float> tracktocharge;
@@ -151,6 +152,7 @@ struct StepLookups {
   }
 
   bool initSensitiveVolLookup(std::string const& filename);
+  bool initGeoVolIdToVMCVolid(TVirtualMC* mc);
 
   void insertParent(int trackindex, int parent)
   {
@@ -233,6 +235,7 @@ struct StepInfo {
   bool outside = false;           // if track is outside world
   bool newtrack = false;          // if track is new
   bool insensitiveRegion = false; // whether step done in sensitive region
+  std::string* geopath = nullptr;
 
   const char* getProdProcessAsString() const;
 

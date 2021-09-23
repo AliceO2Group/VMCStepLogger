@@ -53,7 +53,7 @@ int main(int argc, char* argv[])
   app.setEvGen(&gen);
   mc.SetStack(&stack);
   if (cut > 0.) {
-    mc.SetCut("ALLE", cut);
+    mc.SetCut("CUTALLE", cut);
   }
   mc.Init();
 

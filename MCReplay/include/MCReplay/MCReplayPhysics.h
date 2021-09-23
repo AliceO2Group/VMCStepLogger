@@ -23,8 +23,8 @@ namespace physics
 constexpr std::array<const char*, 15> namesProcesses = {"PAIR", "COMP", "PHOT", "PFIS", "DRAY", "ANNI", "BREM", "HADR", "MUNU", "DCAY", "LOSS", "MULS", "CKOV", "RAYL", "LABS"};
 // standard GEANT cut parameter names (1-11)
 // additional Replay cut parameter names (12-n):
-// ALLE: energy cut applying to all tracks independent of PDG
-constexpr std::array<const char*, 12> namesCuts = {"CUTGAM", "CUTELE", "CUTNEU", "CUTHAD", "CUTMUO", "NCUTE", "BCUTM", "DCUTE", "DCUTM", "PPCUTM", "TOFMAX", "ALLE"};
+// CUTALLE: energy cut applying to all tracks independent of PDG
+constexpr std::array<const char*, 12> namesCuts = {"CUTGAM", "CUTELE", "CUTNEU", "CUTHAD", "CUTMUO", "NCUTE", "BCUTM", "DCUTE", "DCUTM", "PPCUTM", "TOFMAX", "CUTALLE"};
 constexpr const char* unknownParam = "UNKNOWN";
 
 template <typename T, std::size_t N>

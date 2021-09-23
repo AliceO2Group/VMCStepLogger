@@ -144,6 +144,9 @@ StepInfo::StepInfo(TVirtualMC* mc)
     lookupstructures.setTrackCharge(trackID, mc->TrackCharge());
     lookupstructures.setTrackMass(trackID, mc->TrackMass());
   }
+  if (entered || newtrack) {
+    geopath = new std::string(gGeoManager->GetPath());
+  }
 }
 
 const char* StepInfo::getProdProcessAsString() const
@@ -209,4 +212,28 @@ bool StepLookups::initSensitiveVolLookup(const std::string& filename)
   return false;
 }
 
+bool StepLookups::initGeoVolIdToVMCVolid(TVirtualMC* mc)
+{
+  if (!gGeoManager) {
+    std::cerr << "[MCSTEPLOG] : Cannot setup TGeoVolume ID to VMC volume ID mapping since GeoManager not found \n";
+    return false;
+  }
+  // get list of all TGeoVolumes
+  auto vlist = gGeoManager->GetListOfVolumes();
+  auto voliter = vlist->MakeIterator();
+  geovolidtovmcvolid.resize(vlist->GetEntries(), -1);
+
+  TObject* obj = nullptr;
+  TGeoVolume* vol = nullptr;
+
+  while (obj = voliter->Next()) {
+    if (vol = dynamic_cast<TGeoVolume*>(obj)) {
+      if (geovolidtovmcvolid.size() <= vol->GetNumber()) {
+        geovolidtovmcvolid.resize(vol->GetNumber() + 1, -1);
+      }
+      geovolidtovmcvolid[vol->GetNumber()] = mc->VolId(vol->GetName());
+    }
+  }
+  return true;
+}
 } // namespace o2

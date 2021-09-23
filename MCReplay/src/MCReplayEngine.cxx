@@ -13,12 +13,16 @@
 #include <iostream>
 
 // For now include all TGeo headers here
+#include <TROOT.h>
+#include <TInterpreter.h>
 #include <TBranch.h>
 #include <TFile.h>
 #include <TTree.h>
 #include <TRandom3.h>
 #include <TArrayD.h>
 #include <TGeoManager.h>
+#include <TGeoNode.h>
+#include <TGeoVolume.h>
 #include <TGeoBBox.h>
 #include <TGeoTrd1.h>
 #include <TGeoTrd2.h>
@@ -33,10 +37,6 @@
 #include <TGeoArb8.h>
 
 #include "TParticle.h"
-
-#include <TGeoNode.h>
-#include <TGeoVolume.h>
-#include <TIterator.h>
 
 #include "MCReplay/MCReplayEngine.h"
 
@@ -66,6 +66,7 @@ MCReplayEngine::~MCReplayEngine()
     delete m;
   }
   mStepFile->Close();
+  delete mStepFile;
 }
 
 void MCReplayEngine::Init()
@@ -79,6 +80,54 @@ void MCReplayEngine::Init()
   fApplication->MisalignGeometry();
   fApplication->ConstructOpGeometry();
   fApplication->ConstructSensitiveDetectors();
+
+  // load custom user function for whether or not to keep a step
+  if (!mUserKeepStepMacroPath.empty()) {
+    if (gROOT->LoadMacro(mUserKeepStepMacroPath.c_str(), nullptr, true) < 0) {
+      ::Warning("MCReplayEngine::Init", "Cannot load user cut macro %s", mUserKeepStepMacroPath.c_str());
+    }
+    TInterpreterValue* v = gInterpreter->CreateTemporary();
+    gInterpreter->Evaluate("keep_step", *v);
+    mUserKeepStep = (user_keep_step_type*)v->GetValAddr();
+  }
+
+  if (!initRun()) {
+    ::Fatal("MCReplayEngine::Init", "Cannot initialise for run");
+  }
+
+  // We extract the volume ID mapping since volume IDs might differ; in general we assume tgeoID != vmcID
+  o2::StepLookups* lookups = nullptr;
+  mLookupBranch->SetAddress(&lookups);
+  mLookupBranch->GetEvent(0);
+
+  mVolIDMap = lookups->geovolidtovmcvolid;
+  for (int i = 0; i < mVolIDMap.size(); i++) {
+    if (mVolIDMap[i] > -1 && i != mVolIDMap[i]) {
+      mNeedVolIdMapping = true;
+      break;
+    }
+  }
+
+  if (mNeedVolIdMapping) {
+    mVolIDMapInverse.resize(mVolIDMap.size(), -1);
+
+    for (int i = 0; i < mVolIDMap.size(); i++) {
+      if (mVolIDMap[i] < 0) {
+        continue;
+      }
+      if (mVolIDMapInverse.size() <= mVolIDMap[i]) {
+        mVolIDMapInverse.resize(mVolIDMap[i] + 1, -1);
+      }
+      mVolIDMapInverse[mVolIDMap[i]] = i;
+    }
+  } else {
+    mVolIDMap.clear();
+  }
+
+  // Not needed anymore
+  delete lookups;
+
+  // finally init geometry. Extremely important to have the volume ID mapping done before this happens
   fApplication->InitGeometry();
 }
 
@@ -89,18 +138,6 @@ void MCReplayEngine::printCurrentCuts() const
     std::cout << "  -> " << physics::namesCuts[i] << ": " << (*mCurrentCuts)[i] << "\n";
   }
   std::cout << "---" << std::endl;
-}
-
-void MCReplayEngine::adaptToTGeoName(const char* nameIn, char* nameOut) const
-{
-  auto l = strlen(nameIn);
-  if (l >= 79) {
-    l = 79;
-  }
-  for (int i = 0; i < l; i++) {
-    nameOut[i] = nameIn[i];
-  }
-  nameOut[l] = 0;
 }
 
 ULong_t MCReplayEngine::makeHash(const o2::StepInfo& step) const
@@ -191,11 +228,7 @@ void MCReplayEngine::Medium(Int_t& kmed, const char* name, Int_t nmat, Int_t isv
 
 Int_t MCReplayEngine::Gsvolu(const char* name, const char* shape, Int_t nmed, Double_t* upar, Int_t np)
 {
-  char nameOut[80];
-  adaptToTGeoName(name, nameOut);
-  char shapeOut[5];
-  adaptToTGeoName(shape, shapeOut);
-  auto vol = mGeoManager->Volume(nameOut, shapeOut, nmed, upar, np);
+  auto vol = mGeoManager->Volume(name, shape, nmed, upar, np);
   if (!vol) {
     ::Fatal("Gsvolu", "Could not construct volume %s", name);
     return -1;
@@ -213,63 +246,39 @@ Int_t MCReplayEngine::Gsvolu(const char* name, const char* shape, Int_t nmed, Fl
 
 void MCReplayEngine::Gsdvn(const char* name, const char* mother, Int_t ndiv, Int_t iaxis)
 {
-  char nameOut[80];
-  char nameMotherOut[80];
-  adaptToTGeoName(name, nameOut);
-  adaptToTGeoName(mother, nameMotherOut);
-  mGeoManager->Division(nameOut, nameMotherOut, iaxis, ndiv, 0, 0, 0, "n");
+  mGeoManager->Division(name, mother, iaxis, ndiv, 0, 0, 0, "n");
 }
 
 void MCReplayEngine::Gsdvn2(const char* name, const char* mother, Int_t ndiv, Int_t iaxis, Double_t c0i, Int_t numed)
 {
-  char nameOut[80];
-  char nameMotherOut[80];
-  adaptToTGeoName(name, nameOut);
-  adaptToTGeoName(mother, nameMotherOut);
-  mGeoManager->Division(nameOut, nameMotherOut, iaxis, ndiv, c0i, 0, numed, "nx");
+  mGeoManager->Division(name, mother, iaxis, ndiv, c0i, 0, numed, "nx");
 }
 
 void MCReplayEngine::Gsdvt(const char* name, const char* mother, Double_t step, Int_t iaxis, Int_t numed, Int_t ndvmx)
 {
-  char nameOut[80];
-  char nameMotherOut[80];
-  adaptToTGeoName(name, nameOut);
-  adaptToTGeoName(mother, nameMotherOut);
-  mGeoManager->Division(nameOut, nameMotherOut, iaxis, 0, 0, step, numed, "s");
+  mGeoManager->Division(name, mother, iaxis, 0, 0, step, numed, "s");
 }
 
 void MCReplayEngine::Gsdvt2(const char* name, const char* mother, Double_t step, Int_t iaxis, Double_t c0, Int_t numed, Int_t ndvmx)
 {
-  char nameOut[80];
-  char nameMotherOut[80];
-  adaptToTGeoName(name, nameOut);
-  adaptToTGeoName(mother, nameMotherOut);
-  mGeoManager->Division(nameOut, nameMotherOut, iaxis, 0, c0, step, numed, "sx");
+  mGeoManager->Division(name, mother, iaxis, 0, c0, step, numed, "sx");
 }
 
 void MCReplayEngine::Gspos(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly)
 {
-  char nameOut[80];
-  char nameMotherOut[80];
-  adaptToTGeoName(name, nameOut);
-  adaptToTGeoName(mother, nameMotherOut);
   TString onlyString{konly};
   onlyString.ToLower();
   bool isOnly = onlyString.Contains("only") ? true : false;
   Double_t* upar = nullptr;
-  mGeoManager->Node(nameOut, nr, nameMotherOut, x, y, z, irot, isOnly, upar);
+  mGeoManager->Node(name, nr, mother, x, y, z, irot, isOnly, upar);
 }
 
 void MCReplayEngine::Gsposp(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly, Double_t* upar, Int_t np)
 {
-  char nameOut[80];
-  char nameMotherOut[80];
-  adaptToTGeoName(name, nameOut);
-  adaptToTGeoName(mother, nameMotherOut);
   TString onlyString{konly};
   onlyString.ToLower();
   bool isOnly = onlyString.Contains("only") ? true : false;
-  mGeoManager->Node(nameOut, nr, nameMotherOut, x, y, z, irot, isOnly, upar, np);
+  mGeoManager->Node(name, nr, mother, x, y, z, irot, isOnly, upar, np);
 }
 
 void MCReplayEngine::Gsposp(const char* name, Int_t nr, const char* mother, Double_t x, Double_t y, Double_t z, Int_t irot, const char* konly, Float_t* upar, Int_t np)
@@ -592,19 +601,35 @@ Bool_t MCReplayEngine::GetMedium(const TString& volumeName, TString& name, Int_t
   return kTRUE;
 }
 
+Int_t MCReplayEngine::correctGeoVolID(Int_t geoVolId) const
+{
+  if (!mNeedVolIdMapping) {
+    return geoVolId;
+  }
+  return mVolIDMap[geoVolId];
+}
+
+Int_t MCReplayEngine::correctVMCVolID(Int_t vmcVolId) const
+{
+  if (!mNeedVolIdMapping) {
+    return vmcVolId;
+  }
+  return mVolIDMapInverse[vmcVolId];
+}
+
 Int_t MCReplayEngine::VolId(const char* volName) const
 {
   auto uid{mGeoManager->GetUID(volName)};
   if (uid < 0) {
     ::Error("VolId: Volume %s not found\n", volName);
-    return -1; // TODO This was returning 0 before. Is it possible that 0 actually refers to a valid volume?
+    return 0;
   }
-  return uid;
+  return correctGeoVolID(uid);
 }
 
 const char* MCReplayEngine::VolName(Int_t id) const
 {
-  auto volume{mGeoManager->GetVolume(id)};
+  auto volume{mGeoManager->GetVolume(correctVMCVolID(id))};
   if (!volume) {
     ::Error("VolName", "volume with id=%d does not exist", id);
     return "NULL";
@@ -744,7 +769,7 @@ Int_t MCReplayEngine::CurrentVolOffID(Int_t off, Int_t& copyNo) const
     return 0;
   }
   copyNo = node->GetNumber();
-  return node->GetVolume()->GetNumber();
+  return correctGeoVolID(node->GetVolume()->GetNumber());
 }
 
 const char* MCReplayEngine::CurrentVolName() const
@@ -822,7 +847,9 @@ void MCReplayEngine::Gstpar(Int_t itmed, const char* param, Double_t parval)
   if (insertProcessOrCut(mProcesses, physics::namesProcesses, mProcessesGlobal, itmed, param, (int)parval)) {
     return;
   }
-  insertProcessOrCut(mCuts, physics::namesCuts, mCutsGlobal, itmed, param, parval);
+  if (!insertProcessOrCut(mCuts, physics::namesCuts, mCutsGlobal, itmed, param, parval)) {
+    ::Warning("MCReplayEngine::Gstpar", "Could not set parameter %s, unknown and therefore skipped", param);
+  }
 }
 
 void MCReplayEngine::loadCurrentCutsAndProcesses(int volId)
@@ -856,7 +883,11 @@ bool MCReplayEngine::keepDueToCuts(const o2::StepInfo& step) const
 
 bool MCReplayEngine::keepStep(const o2::StepInfo& step) const
 {
-  return keepDueToCuts(step) && keepDueToProcesses(step);
+  auto keep = keepDueToCuts(step) && keepDueToProcesses(step);
+  if (!mUserKeepStep || !keep) {
+    return keep;
+  }
+  return (*mUserKeepStep)(step, mCurrentLookups);
 }
 
 bool MCReplayEngine::initRun()
@@ -894,27 +925,20 @@ void MCReplayEngine::transportUserHitSecondary()
 
 void MCReplayEngine::ProcessEvent(Int_t eventId)
 {
-  if (!initRun()) {
-    return;
-  }
-
   // prepare
   std::vector<o2::StepInfo>* steps = nullptr;
   mCurrentLookups = nullptr;
   mStepBranch->SetAddress(&steps);
   mLookupBranch->SetAddress(&mCurrentLookups);
-  mStepBranch->GetEvent(mCurrentEvent);
-  mLookupBranch->GetEvent(mCurrentEvent);
+  mStepBranch->GetEvent(eventId);
+  mLookupBranch->GetEvent(eventId);
 
   // whether or not to skip certain tracks
-  std::vector<bool> skipTrack(mCurrentLookups->tracktopdg.size(), false);
+  mSkipTrack.resize(mCurrentLookups->tracktopdg.size(), false);
   // we need to make sure we follow the indexing of the user stack. During the original simulation, there might have been more tracks pushed than transported. In the replay case, we only have the tracks that have been originally transported. Hence, the indexing this time might be different.
-  std::vector<int> userTrackId(mCurrentLookups->tracktopdg.size(), -1);
+  mUserTrackId.resize(mCurrentLookups->tracktopdg.size(), -1);
   // some caching to be able to run pre- and post-hooks at the right time
   int currentTrackId = -1;
-  // some caching to be able to update the TGeoManager state
-  int previousVolId = -1;
-  int previousCopyNo = -1;
 
   fApplication->BeginEvent();
   fApplication->GeneratePrimaries();
@@ -926,61 +950,47 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
 
   1. Steps are expected to be grouped together track-by-track (that comes from the MCStepLogger and will only work properly for the serial simulation run)
   2. Therefore, if a step with a different track ID is reached, it is assumed that the previous track is finished
-  3. Since in the original reference un, some secondaries might have been pushed to the user stack but not transported, we comply with the track ID assignement of the user stack in a replay run
+  3. Since in the original reference run, some secondaries might have been pushed to the user stack but not transported, we comply with the track ID assignement of the user stack in a replay run
      See also comments in the corresponding section below
-  4. Whenever a new node (different volume ID or copy number) is entered, we let the TGeoManager find that node (see further comments below)
-  5. The current approach definitely works for GEANT3 in which case the next primary is popped and transported only after all secondaries of the previous primary have been transported.
-     In that case TVirtualMCApplication::FinishPrimary() is called after the last secondary and before the next primary
-     ==> Might need some refinement for GEANT4
-     ==> TODO Most definitely, the geometry construction between GEANT3 and GEANT4 differs, so we find different volume IDs, in particular for sensitive volumes ==> NEeds fixing/clarification
-
-  In case no additional cuts are applied during the replay:
-  1. At least with GEANT3 reference runs, steps are exactly reproduced comparing the reference run and a replay
-  2. hits are exactly reproduced for each replay run
+  4. To initialise the TGeoManager correctly, the geometry paths are stored as step information only in case a track is entering
   */
 
   unsigned int nStepsKept{0};
+  unsigned int nUserTracks{0};
+  unsigned int nStopTrack{0};
 
-  for (const auto& step : *steps) {
+  for (auto& step : *steps) {
 
     // TODO This should not happen. (see comment in header file for these flags)
     if (mIsEventStopped) {
       mIsEventStopped = false;
       ::Warning("MCReplayEngine::ProcessEvent", "Event %d was stopped. That should usually not happen", mCurrentEvent);
-      delete steps;
-      delete mCurrentLookups;
-      return;
+      break;
     }
+
+    mSkipTrack[step.trackID] = !step.newtrack && mSkipTrack[step.trackID];
 
     // skip if flagged and increment
-    if (skipTrack[step.trackID]) {
+    if (mSkipTrack[step.trackID]) {
       continue;
     }
-    if (mCurrentLookups->tracktoparent[step.trackID] > -1 && skipTrack[mCurrentLookups->tracktoparent[step.trackID]]) {
+    if (mCurrentLookups->tracktoparent[step.trackID] > -1 && mSkipTrack[mCurrentLookups->tracktoparent[step.trackID]]) {
       // skip recursively in case parent was skipped, only affects secondaries of course
-      skipTrack[step.trackID] = true;
+      mSkipTrack[step.trackID] = true;
       continue;
     }
 
-    if (step.volId != previousVolId || step.copyNo != previousCopyNo) {
+    if (step.entered || step.newtrack) {
       // find the correct set of cuts and processes for this volume
       loadCurrentCutsAndProcesses(step.volId);
-      previousVolId = step.volId;
-      previousCopyNo = step.copyNo;
-      // We need the navigator in the current TGeoNode in order to perform tasks like CurrentVolOffID.
-      // TODO Can we find a cheaper way of doing that?
-      // It does not seem to be possible to just get a TGeoNode even if the volume ID and copy number are known...
-      // Indeed, that could be a cheaper way but for the moment we stick to the TGeoManager
-      // NOTE/TODO Actually, this could MAYBE go wrong hence finding the previous volume, for instance in case the step was made close to/at the boundary
-      mGeoManager->FindNode(step.x, step.y, step.z);
+      mGeoManager->cd(step.geopath->c_str());
     }
 
     // NOW PERFORM EVERYTHIN NECESSARY TO START / FINISH A TRACK
 
     if (currentTrackId == step.trackID && mIsTrackStopped) {
-      // as the warning says, it should not happen but could (e.g. due to double vs. float precision)
-      // but mainly due to the fact that the RNG (TRandom) in the reference run and in this replay do not have the same seeding
-      ::Warning("MCReplayEngine::ProcessEvent", "Track %d was stopped (PDG %d). That should usually not happen", userTrackId[step.trackID], mCurrentLookups->tracktopdg[step.trackID]);
+      // track can be told to be stopped in replay run due to different states of RNGs of reference and replay run, will be ignored
+      nStopTrack++;
       mIsTrackStopped = false;
     }
 
@@ -1002,15 +1012,15 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
         // decide to skip this secondary immediately, primaries must be popped first since otherwise we might run into inconsitencies with the user stack
         // therefore, it looks as if this secondary never appeared
         if (!keepStep(step)) {
-          skipTrack[step.trackID] = true;
+          mSkipTrack[step.trackID] = true;
           continue;
         }
 
         // only push track if it is a secondary
         // by default just assign the MCStepLogger track ID, but the user stack might then decide to do something else
-        userTrackId[step.trackID] = step.trackID;
-        mStack->PushTrack(1, userTrackId[mCurrentLookups->tracktoparent[step.trackID]], mCurrentLookups->tracktopdg[step.trackID], step.px, step.py, step.pz, step.E, step.x, step.y, step.z, step.t, 1., 1., 1., TMCProcess(step.prodprocess), userTrackId[step.trackID], 1., 0);
-        mStack->PopNextTrack(userTrackId[step.trackID]);
+        mUserTrackId[step.trackID] = step.trackID;
+        mStack->PushTrack(1, mUserTrackId[mCurrentLookups->tracktoparent[step.trackID]], mCurrentLookups->tracktopdg[step.trackID], step.px, step.py, step.pz, step.E, step.x, step.y, step.z, step.t, 1., 1., 1., TMCProcess(step.prodprocess), mUserTrackId[step.trackID], 1., 0);
+        mStack->PopNextTrack(mUserTrackId[step.trackID]);
       } else {
         // We ignore all tracks which were pushed somehow during hit creation, for instance based on an RNG. If we wouldn't do that, it would lead to an incoherent stack compared to the logged steps
         // That indeed happens in case of the O2 TRD
@@ -1020,13 +1030,14 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
         while (popTrackId >= expectedNPrimaries) {
           // In such a case there are secondaries pushed during hit creation...
           transportUserHitSecondary();
+          nUserTracks++;
           mStack->PopNextTrack(popTrackId);
         }
-        userTrackId[step.trackID] = popTrackId;
+        mUserTrackId[step.trackID] = popTrackId;
       }
 
       currentTrackId = step.trackID;
-      mStack->SetCurrentTrack(userTrackId[step.trackID]);
+      mStack->SetCurrentTrack(mUserTrackId[step.trackID]);
       mCurrentTrackLength = 0.;
 
       if (prim) {
@@ -1036,7 +1047,7 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
 
       if (!keepStep(step)) {
         // This is for primaries since secondaries would have been skipped already above
-        skipTrack[step.trackID] = true;
+        mSkipTrack[step.trackID] = true;
         continue;
       }
 
@@ -1045,7 +1056,7 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
     }
 
     mCurrentTrackLength += step.step;
-    mCurrentStep = const_cast<o2::StepInfo*>(&step);
+    mCurrentStep = &step;
 
     nStepsKept++;
     fApplication->Stepping();
@@ -1058,7 +1069,9 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
   fApplication->FinishEvent();
 
   auto nStepsSkipped = steps->size() - nStepsKept;
-  std::cout << "Original number, skipped, kept, skipped fraction and kept fraction of steps: " << steps->size() << " " << nStepsSkipped << " " << nStepsKept << " " << static_cast<float>(nStepsSkipped) / steps->size() << " " << static_cast<float>(nStepsSkipped) / steps->size() << "\n";
+  std::cout << "Original number, skipped, kept, skipped fraction and kept fraction of steps: " << steps->size() << " " << nStepsSkipped << " " << nStepsKept << " " << static_cast<float>(nStepsSkipped) / steps->size() << " " << static_cast<float>(nStepsKept) / steps->size() << "\n";
+  std::cout << "In addition, " << nUserTracks << " tracks produced during hit creation were ignored\n";
+  std::cout << "TVirtualMC::StopTrack was ignored " << nStopTrack << " times\n";
 
   delete steps;
   delete mCurrentLookups;
