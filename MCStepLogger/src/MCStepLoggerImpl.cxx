@@ -233,6 +233,7 @@ class StepLogger
       // try to load the volumename -> modulename mapping
       initVolumeMap();
       StepInfo::lookupstructures.initSensitiveVolLookup(getSensitiveVolFile());
+      StepInfo::lookupstructures.initGeoVolIdToVMCVolid(mc);
       mVolMapInitialized = true;
     }
 
