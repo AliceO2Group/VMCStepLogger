@@ -72,6 +72,7 @@ struct StepLookups {
 
   void insertVolName(int index, std::string const& s) { insertValueAt(index, s, volidtovolname); }
   void insertModuleName(int index, std::string const& s) { insertValueAt(index, s, volidtomodule); }
+  void insertMediumName(int index, std::string const& s) { insertValueAt(index, s, volidtomedium); }
   std::string* getModuleAt(int index) const
   {
     if (index >= volidtomodule.size())

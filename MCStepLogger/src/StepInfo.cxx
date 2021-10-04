@@ -62,7 +62,6 @@ StepInfo::StepInfo(TVirtualMC* mc)
   // try to resolve the module via external map
   // keep information in faster vector once looked up
   auto volname = mc->CurrentVolName();
-  lookupstructures.insertVolName(volId, volname);
 
   if (volnametomodulemap && volnametomodulemap->size() > 0 && volId >= 0) {
     if (lookupstructures.getModuleAt(volId) == nullptr) {
@@ -228,10 +227,14 @@ bool StepLookups::initGeoVolIdToVMCVolid(TVirtualMC* mc)
 
   while (obj = voliter->Next()) {
     if (vol = dynamic_cast<TGeoVolume*>(obj)) {
+      auto volIdVMC{mc->VolId(vol->GetName())};
+      insertVolName(volIdVMC, vol->GetName());
+      insertMediumName(volIdVMC, vol->GetMedium()->GetName());
+
       if (geovolidtovmcvolid.size() <= vol->GetNumber()) {
         geovolidtovmcvolid.resize(vol->GetNumber() + 1, -1);
       }
-      geovolidtovmcvolid[vol->GetNumber()] = mc->VolId(vol->GetName());
+      geovolidtovmcvolid[vol->GetNumber()] = volIdVMC;
     }
   }
   return true;
