@@ -1047,7 +1047,8 @@ class MCReplayEngine : public TVirtualMC
   // TODO To be implemented
   virtual void ProcessEvent() override
   {
-    Warning("ProcessEvent", "Not yet implemented");
+    // Here we assume that the transport of the next event is desired
+    ProcessEvent(mCurrentEvent);
   }
 
   /// Process one  run and return true if run has finished successfully,
