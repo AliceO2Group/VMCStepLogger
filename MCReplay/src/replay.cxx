@@ -24,7 +24,7 @@ int main(int argc, char* argv[])
 {
   // prepare reading cmd options and store them
   bpo::options_description desc("Replaying a previously recorded particle transport step-by-step. Mainly meant for checking and performance measurements/optimisation of the transport");
-  desc.add_options()("help", "show this help message and exit")("stepfilename", bpo::value<std::string>()->default_value("MCStepLoggerOutput.root"), "MCStepLogger filename")("steptreename", bpo::value<std::string>()->default_value("StepLoggerTree"), "treename inside file where to find step tree")("geofilename", bpo::value<std::string>()->default_value("o2sim_geometry.root"), "ROOT geometry filename")("geokeyname", bpo::value<std::string>()->default_value("FAIRGeom"), "key name inside geo file where to find geometry tree")("nevents,n", bpo::value<int>()->default_value(-1), "number of events to replay")("energycut,e", bpo::value<float>()->default_value(-1.), "energy cut to be applied [GeV]");
+  desc.add_options()("help", "show this help message and exit")("stepfilename", bpo::value<std::string>()->default_value("MCStepLoggerOutput.root"), "MCStepLogger filename")("steptreename", bpo::value<std::string>()->default_value("StepLoggerTree"), "treename inside file where to find step tree")("geofilename", bpo::value<std::string>()->default_value("o2sim_geometry.root"), "ROOT geometry filename")("geokeyname", bpo::value<std::string>()->default_value(""), "key name inside geo file where to find geometry tree")("nevents,n", bpo::value<int>()->default_value(-1), "number of events to replay")("energycut,e", bpo::value<float>()->default_value(-1.), "energy cut to be applied [GeV]");
 
   bpo::variables_map vm;
   bpo::store(bpo::parse_command_line(argc, argv, desc), vm);
