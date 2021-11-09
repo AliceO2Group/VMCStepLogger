@@ -728,7 +728,7 @@ int MCReplayEngine::getMediumId(int volId) const
         mCurrentLookups->volidtomedium[volId]->size() != 0) {
       // extract medium name, from that the TGeoMedium and from that finally the ID
       auto mediumName{*(mCurrentLookups->volidtomedium[volId])};
-      auto medium{gGeoManager->GetMedium(mediumName.c_str())};
+      auto medium{mGeoManager->GetMedium(mediumName.c_str())};
       if (medium) {
         return medium->GetId();
       }

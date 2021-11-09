@@ -27,11 +27,17 @@ MCReplayGenericApplication::MCReplayGenericApplication(const std::string& geoFil
     mStack{nullptr},
     mPrimGen{nullptr}
 {
-  if (mGeoFilename.empty() || mGeoKeyname.empty()) {
-    // Otherwise assume that the geometry was constructed already by the user
+  if (mGeoFilename.empty()) {
+    // we only require the file name to be non-empty. In that case the geo manager would take the first key
+    // under which a geometry can be found
     ::Fatal("MCReplayGenericApplication::ctor", "Need file and key name where to find TGeo geometry");
   }
+
   mGeoManager = TGeoManager::Import(mGeoFilename.c_str(), mGeoKeyname.c_str());
+
+  if (!mGeoManager) {
+    ::Fatal("MCReplayGenericApplication::ctor", "Could not load geometry from path %s under key %s", mGeoFilename.c_str(), mGeoKeyname.c_str());
+  }
 }
 
 void MCReplayGenericApplication::ConstructGeometry()
