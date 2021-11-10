@@ -1,10 +1,10 @@
-# TMCReplay
+# MCReplay
 
 This is a pseudo-detector-simulation engine based on the [Virtual Monte Carlo (VMC)](https://vmc-project.github.io/) package. It takes logged steps recorded by the `MCStepLogger` to **replay** the entire simulation.
 
 The main objective is to be able to provide an engine to study the impact of parameter variations with. Eventually, this can be used to optimise (full-)simulation parameters in view of enhancing their speed and efficiency.
 
-The functionality is compiled into a separate library `libMCReplayCore`. Hence, `libMCStepLoggerIntercept` is completely independent which also allows to run the step logging against the `MCReplayEngine` engine.
+The functionality is compiled into a separate library `libMCReplayCore`. Hence, `libMCStepLoggerInterceptSteps` is completely independent which also allows to run the step logging against the `MCReplayEngine` engine.
 
 The replay has been tested and is verified against [GEANT3_VMC](https://github.com/vmc-project/geant3) and [GEANT4_VMC](https://github.com/vmc-project/geant4_vmc) VMC interfaces.
 
@@ -42,7 +42,7 @@ Replaying a previously recorded particle transport step-by-step. Mainly meant fo
                                         tree
   --geofilename arg (=o2sim_geometry.root)
                                         ROOT geometry filename
-  --geokeyname arg (=FAIRGeom)          key name inside geo file where to find
+  --geokeyname arg                      key name inside geo file where to find
                                         geometry tree
   -n [ --nevents ] arg (=-1)            number of events to replay
   -e [ --energycut ] arg (=-1)          energy cut to be applied [GeV]

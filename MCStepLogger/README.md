@@ -10,7 +10,7 @@ This package can be used to log and analyse the single steps computed by detecto
 3 libraries are built
 
 1. `libMCStepLoggerCore.so`
-2. `libMCStepLoggerIntercept.so`
+2. `libMCStepLoggerInterceptSteps.so`
 3. `libMCStepLoggerAnalysis.so`
 
 The first one contains core functionality to be used in depending packages and the same is true for the third one which contains analysis specific code.
@@ -18,7 +18,7 @@ The first one contains core functionality to be used in depending packages and t
 The second allows for detailed debug information where stepping can be directed to standard output using the `LD_PRELOAD` env variable, which "injects" this library (which intercepts some calls) in the executable that follows in the command line.
 
 ```bash
-LD_PRELOAD=path_to/libMCStepLoggerIntercept.so o2-sim-serial -m MCH -n 10
+LD_PRELOAD=path_to/libMCStepLoggerInterceptSteps.so o2-sim-serial -m MCH -n 10
 ```
 
 
