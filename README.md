@@ -1,4 +1,4 @@
-# MCStepLogger and TMCReplay
+# MCStepLogger and MCReplay
 
 ### Build and install **with** `aliBuild`
 
@@ -33,5 +33,5 @@ That leaves you with
 
 **Additional options**
 
-* In order to disable the built of the `TMCReplay` engine, pass `-MCStepLogger_BUILD_TMCReplay=OFF` at configure time.
+* In order to disable the built of the `MCReplay` engine, pass `-MCStepLogger_BUILD_MCReplay=OFF` at configure time.
 * To enable testing, pass `-MCStepLogger_BUILD_TESTS=ON` at configure time.
