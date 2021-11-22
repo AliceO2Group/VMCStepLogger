@@ -12,6 +12,10 @@
 #include <algorithm>
 #include <iostream>
 
+#include <boost/program_options.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree_fwd.hpp>
+
 // For now include all TGeo headers here
 #include <TROOT.h>
 #include <TInterpreter.h>
@@ -35,8 +39,7 @@
 #include <TGeoEltu.h>
 #include <TGeoHype.h>
 #include <TGeoArb8.h>
-
-#include "TParticle.h"
+#include <TStopwatch.h>
 
 #include "MCReplay/MCReplayEngine.h"
 
@@ -739,11 +742,19 @@ int MCReplayEngine::getMediumId(int volId) const
 
 Bool_t MCReplayEngine::SetProcess(const char* flagName, Int_t flagValue)
 {
+  if (mUpdateProcessesCutsBlocked) {
+    ::Info("MCReplayEngine::Gstpar", "Parameter setting closed, nothing is changed.");
+    return false;
+  }
   return insertProcessOrCut(mProcessesGlobal, physics::namesCuts, flagName, flagValue);
 }
 
 Bool_t MCReplayEngine::SetCut(const char* cutName, Double_t cutValue)
 {
+  if (mUpdateProcessesCutsBlocked) {
+    ::Info("MCReplayEngine::Gstpar", "Parameter setting closed, nothing is changed.");
+    return false;
+  }
   return insertProcessOrCut(mCutsGlobal, physics::namesCuts, cutName, cutValue);
 }
 
@@ -842,8 +853,46 @@ void MCReplayEngine::Gdtom(Float_t* xd, Float_t* xm, Int_t iflag)
   }
 }
 
+void MCReplayEngine::cutsFromConfig(std::string const& path)
+{
+  if (mUpdateProcessesCutsBlocked) {
+    ::Info("MCReplayEngine::paramsFromConfig", "Parameter setting closed, nothing is changed.");
+    return;
+  }
+
+  ::Info("MCReplayEngine::paramsFromConfig", "Read Params from %s", path.c_str());
+  if (path.empty()) {
+    return;
+  }
+  boost::property_tree::ptree pt;
+  boost::property_tree::json_parser::read_json(path, pt);
+
+  for (auto& it : pt) {
+    auto mediumID = std::stoi(it.first);
+    int i = 0;
+    for (auto& v : it.second) {
+      auto value = v.second.get_value<double>();
+      if (value < 0.) {
+        continue;
+      }
+      // TODO Going back and forth between parameter name and index. Implement so that we use the index directly
+      auto param = physics::indexToParam(physics::namesCuts, i);
+      if (mediumID < 0) {
+        insertProcessOrCut(mCutsGlobal, physics::namesCuts, i, value);
+      } else {
+        insertProcessOrCut(mCuts, physics::namesCuts, mCutsGlobal, mediumID, i, value);
+      }
+      i++;
+    }
+  }
+}
+
 void MCReplayEngine::Gstpar(Int_t itmed, const char* param, Double_t parval)
 {
+  if (mUpdateProcessesCutsBlocked) {
+    ::Info("MCReplayEngine::Gstpar", "Parameter setting closed, nothing is changed.");
+    return;
+  }
   if (insertProcessOrCut(mProcesses, physics::namesProcesses, mProcessesGlobal, itmed, param, (int)parval)) {
     return;
   }
@@ -876,6 +925,24 @@ bool MCReplayEngine::keepDueToCuts(const o2::StepInfo& step) const
 {
   if ((*mCurrentCuts)[11] > 0. && step.E < (*mCurrentCuts)[11]) {
     // check global energy cut
+    return false;
+  }
+  auto pdg = mCurrentLookups->tracktopdg[step.trackID];
+  if ((*mCurrentCuts)[0] > 0. && physics::isPhoton(pdg) && step.E < (*mCurrentCuts)[0]) {
+    return false;
+  }
+  if ((*mCurrentCuts)[1] > 0. && physics::isElectronPositron(pdg) && step.E < (*mCurrentCuts)[1]) {
+    return false;
+  }
+  if (physics::isHadron(pdg)) {
+    if (mCurrentLookups->tracktocharge[step.trackID] && (*mCurrentCuts)[3] > 0. && step.E < (*mCurrentCuts)[3]) {
+      return false;
+    }
+    if ((*mCurrentCuts)[2] > 0. && step.E < (*mCurrentCuts)[2]) {
+      return false;
+    }
+  }
+  if ((*mCurrentCuts)[4] > 0. && physics::isMuonAntiMuon(pdg) && step.E < (*mCurrentCuts)[4]) {
     return false;
   }
   return true;
@@ -958,6 +1025,8 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
   unsigned int nStepsKept{0};
   unsigned int nUserTracks{0};
   unsigned int nStopTrack{0};
+
+  TStopwatch stopwatch{};
 
   for (auto& step : *steps) {
 
@@ -1068,10 +1137,13 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
 
   fApplication->FinishEvent();
 
+  stopwatch.Stop();
+
   auto nStepsSkipped = steps->size() - nStepsKept;
   std::cout << "Original number, skipped, kept, skipped fraction and kept fraction of steps: " << steps->size() << " " << nStepsSkipped << " " << nStepsKept << " " << static_cast<float>(nStepsSkipped) / steps->size() << " " << static_cast<float>(nStepsKept) / steps->size() << "\n";
   std::cout << "In addition, " << nUserTracks << " tracks produced during hit creation were ignored\n";
   std::cout << "TVirtualMC::StopTrack was ignored " << nStopTrack << " times\n";
+  std::cout << "Real time: " << stopwatch.RealTime() << ", CPU time: " << stopwatch.CpuTime() << "\n";
 
   delete steps;
   delete mCurrentLookups;

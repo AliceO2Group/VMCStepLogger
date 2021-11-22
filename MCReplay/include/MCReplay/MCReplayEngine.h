@@ -1100,6 +1100,13 @@ class MCReplayEngine : public TVirtualMC
     mUserKeepStepMacroPath = path;
   }
 
+  void blockSetProcessesCuts(bool value = true)
+  {
+    mUpdateProcessesCutsBlocked = value;
+  }
+
+  void cutsFromConfig(std::string const& path);
+
  private:
   // init the run, used to guarantee that both ProcessRun and ProcessEvent
   // work just fine
@@ -1138,6 +1145,13 @@ class MCReplayEngine : public TVirtualMC
   bool insertProcessOrCut(std::vector<std::vector<P>*>& insertInto, const std::array<T, N>& allParamsNames, const std::vector<P>& defaultParams, Int_t mediumId, const char* paramName, P parval)
   {
     auto paramIndex = physics::paramToIndex(allParamsNames, paramName);
+    return insertProcessOrCut(insertInto, allParamsNames, defaultParams, mediumId, paramIndex, parval);
+  }
+
+  // add process or cut values based on name and value
+  template <typename P, typename T, std::size_t N>
+  bool insertProcessOrCut(std::vector<std::vector<P>*>& insertInto, const std::array<T, N>& allParamsNames, const std::vector<P>& defaultParams, Int_t mediumId, int paramIndex, P parval)
+  {
     if (paramIndex < 0) {
       return false;
     }
@@ -1158,6 +1172,12 @@ class MCReplayEngine : public TVirtualMC
   bool insertProcessOrCut(std::vector<P>& insertInto, const std::array<T, N>& allParamsNames, const char* paramName, P parval)
   {
     auto paramIndex = physics::paramToIndex(allParamsNames, paramName);
+    return insertProcessOrCut(insertInto, allParamsNames, paramIndex, parval);
+  }
+
+  template <typename P, typename T, std::size_t N>
+  bool insertProcessOrCut(std::vector<P>& insertInto, const std::array<T, N>& allParamsNames, int paramIndex, P parval)
+  {
     if (paramIndex < 0) {
       return false;
     }
@@ -1213,6 +1233,8 @@ class MCReplayEngine : public TVirtualMC
   // increment the current track length
   float mCurrentTrackLength = 0.;
 
+  // block in case framework should be prevented from setting cuts or processes
+  bool mUpdateProcessesCutsBlocked = false;
   // Preliminary process structure
   std::vector<std::vector<Int_t>*> mProcesses;
   // Preliminary cut structure
