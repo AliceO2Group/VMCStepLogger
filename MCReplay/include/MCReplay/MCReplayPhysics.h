@@ -13,6 +13,8 @@
 #define MC_REPLAY_PHYSICS_H
 
 #include <array>
+#include <algorithm>
+#include <cstring>
 
 // Fix process and cut names
 namespace mcreplay
@@ -23,8 +25,8 @@ namespace physics
 constexpr std::array<const char*, 15> namesProcesses = {"PAIR", "COMP", "PHOT", "PFIS", "DRAY", "ANNI", "BREM", "HADR", "MUNU", "DCAY", "LOSS", "MULS", "CKOV", "RAYL", "LABS"};
 // standard GEANT cut parameter names (1-11)
 // additional Replay cut parameter names (12-n):
-// CUTALLE: energy cut applying to all tracks independent of PDG
-constexpr std::array<const char*, 12> namesCuts = {"CUTGAM", "CUTELE", "CUTNEU", "CUTHAD", "CUTMUO", "NCUTE", "BCUTM", "DCUTE", "DCUTM", "PPCUTM", "TOFMAX", "CUTALLE"};
+// CUTALL: energy cut applying to all tracks independent of PDG
+constexpr std::array<const char*, 12> namesCuts = {"CUTGAM", "CUTELE", "CUTNEU", "CUTHAD", "CUTMUO", "BCUTE", "BCUTM", "DCUTE", "DCUTM", "PPCUTM", "TOFMAX", "CUTALL"};
 constexpr const char* unknownParam = "UNKNOWN";
 
 template <typename T, std::size_t N>
@@ -45,6 +47,14 @@ const char* indexToParam(const std::array<T, N>& allParams, std::size_t index)
   }
   return allParams[index];
 }
+
+bool isPhoton(int pdg);
+
+bool isElectronPositron(int pdg);
+
+bool isMuonAntiMuon(int pdg);
+
+bool isHadron(int pdg);
 
 } // namespace physics
 } // end namespace mcreplay
