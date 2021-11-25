@@ -62,8 +62,13 @@ endif(NOT MCStepLogger_BUILD_TESTS)
 # Find ROOT and get useful functions from ROOT_USE_FILE,
 # e.g. ROOT_GENERATE_DICTIONARY
 list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
-find_package(ROOT REQUIRED COMPONENTS Core Hist Graf Gpad Tree VMC RIO Geom EG)
+find_package(ROOT REQUIRED COMPONENTS Core Hist Graf Gpad Tree RIO Geom EG)
 include(${ROOT_USE_FILE})
+
+#######
+# VMC #
+#######
+find_package(VMC CONFIG REQUIRED)
 
 #########
 # Boost #
