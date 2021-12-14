@@ -68,7 +68,13 @@ include(${ROOT_USE_FILE})
 #######
 # VMC #
 #######
-find_package(VMC CONFIG REQUIRED)
+find_package(VMC CONFIG)
+if(NOT VMC_FOUND)
+  if(NOT ROOT_vmc_FOUND)
+    message(FATAL_ERROR "Could neither find VMC standalone nor ROOT's builtin")
+  endif()
+  add_library(VMCLibrary ALIAS ROOT::VMC)
+endif()
 
 #########
 # Boost #
