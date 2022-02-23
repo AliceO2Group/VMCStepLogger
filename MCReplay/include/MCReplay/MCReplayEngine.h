@@ -427,14 +427,14 @@ class MCReplayEngine : public TVirtualMC
   // Set a sensitive detector to a volume
   // - volName - the volume name
   // - sd - the user sensitive detector
-  virtual void SetSensitiveDetector(const TString &volName, TVirtualMCSensitiveDetector *sd) override
+  virtual void SetSensitiveDetector(const TString& volName, TVirtualMCSensitiveDetector* sd) override
   {
     Warning("SetSensitiveDetector", "Not supported");
   }
 
   // Get a sensitive detector of a volume
   // - volName - the volume name
-  virtual TVirtualMCSensitiveDetector *GetSensitiveDetector(const TString &volName) const override
+  virtual TVirtualMCSensitiveDetector* GetSensitiveDetector(const TString& volName) const override
   {
     Warning("GetSensitiveDetector", "Not supported");
     return nullptr;
