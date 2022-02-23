@@ -427,13 +427,15 @@ class MCReplayEngine : public TVirtualMC
   // Set a sensitive detector to a volume
   // - volName - the volume name
   // - sd - the user sensitive detector
-  virtual void SetSensitiveDetector(const TString &volName, TVirtualMCSensitiveDetector *sd) override {
+  virtual void SetSensitiveDetector(const TString &volName, TVirtualMCSensitiveDetector *sd) override
+  {
     Warning("SetSensitiveDetector", "Not supported");
   }
 
   // Get a sensitive detector of a volume
   // - volName - the volume name
-  virtual TVirtualMCSensitiveDetector *GetSensitiveDetector(const TString &volName) const override {
+  virtual TVirtualMCSensitiveDetector *GetSensitiveDetector(const TString &volName) const override
+  {
     Warning("GetSensitiveDetector", "Not supported");
     return nullptr;
   }
@@ -441,7 +443,8 @@ class MCReplayEngine : public TVirtualMC
   // The scoring option:
   // if true, scoring is performed only via user defined sensitive detectors and
   // MCApplication::Stepping is not called
-  virtual void SetExclusiveSDScoring(Bool_t exclusiveSDScoring) override {
+  virtual void SetExclusiveSDScoring(Bool_t exclusiveSDScoring) override
+  {
     Warning("SetExclusiveSDScoring", "Not supported");
   }
 
@@ -1055,11 +1058,12 @@ class MCReplayEngine : public TVirtualMC
     ProcessEvent(mCurrentEvent);
   }
 
-   /// That triggers stopping the transport of the current track without dispatching
-   /// to common routines like TVirtualMCApplication::PostTrack() etc.
-   virtual void InterruptTrack() {
+  /// That triggers stopping the transport of the current track without dispatching
+  /// to common routines like TVirtualMCApplication::PostTrack() etc.
+  virtual void InterruptTrack()
+  {
     Info("InterruptTrack", "Not implemented");
-   }
+  }
 
   /// Process one  run and return true if run has finished successfully,
   /// return false in other cases (run aborted by user)
