@@ -249,13 +249,13 @@ class MCReplayEngine : public TVirtualMC
   ///                     - metals    : absorption fraction (0<=x<=1)
   /// - effic       Detection efficiency for UV photons
   /// - rindex      Refraction index (if=0 metal)
-  virtual void SetCerenkov(Int_t itmed, Int_t npckov, Float_t* ppckov, Float_t* absco, Float_t* effic, Float_t* rindex) override
+  virtual void SetCerenkov(Int_t itmed, Int_t npckov, Float_t* ppckov, Float_t* absco, Float_t* effic, Float_t* rindex, Bool_t aspline = false, Bool_t rspline = false) override
   {
     Warning("SetCerenkov", "Not supported");
   }
 
   /// The same as previous but in double precision
-  virtual void SetCerenkov(Int_t itmed, Int_t npckov, Double_t* ppckov, Double_t* absco, Double_t* effic, Double_t* rindex) override
+  virtual void SetCerenkov(Int_t itmed, Int_t npckov, Double_t* ppckov, Double_t* absco, Double_t* effic, Double_t* rindex, Bool_t aspline = false, Bool_t rspline = false) override
   {
     Warning("SetCerenkov", "Not supported");
   }
@@ -308,7 +308,7 @@ class MCReplayEngine : public TVirtualMC
   /// - pp            value of photon momentum (in GeV)
   /// - values        property values
   /// (Geant4 only)
-  virtual void SetMaterialProperty(Int_t itmed, const char* propertyName, Int_t np, Double_t* pp, Double_t* values) override
+  virtual void SetMaterialProperty(Int_t itmed, const char* propertyName, Int_t np, Double_t* pp, Double_t* values, Bool_t createNewKey = false, Bool_t spline = false) override
   {
     Warning("SetMaterialProperty", "Not supported");
   }
@@ -330,7 +330,7 @@ class MCReplayEngine : public TVirtualMC
   /// - pp            value of photon momentum (in GeV)
   /// - values        property values
   /// (Geant4 only)
-  virtual void SetMaterialProperty(const char* surfaceName, const char* propertyName, Int_t np, Double_t* pp, Double_t* values) override
+  virtual void SetMaterialProperty(const char* surfaceName, const char* propertyName, Int_t np, Double_t* pp, Double_t* values, Bool_t createNewKey = false, Bool_t spline = false) override
   {
     Warning("SetMaterialProperty", "Not supported");
   }
@@ -424,22 +424,29 @@ class MCReplayEngine : public TVirtualMC
   // ------------------------------------------------
   //
 
-  /// Set a sensitive detector to a volume
-  /// - volName - the volume name
-  /// - sd - the user sensitive detector
-  // TODO To be implemented
-  //virtual void SetSensitiveDetector(const TString &volName, TVirtualMCSensitiveDetector *sd) override;
+  // Set a sensitive detector to a volume
+  // - volName - the volume name
+  // - sd - the user sensitive detector
+  virtual void SetSensitiveDetector(const TString& volName, TVirtualMCSensitiveDetector* sd) override
+  {
+    Warning("SetSensitiveDetector", "Not supported");
+  }
 
-  /// Get a sensitive detector of a volume
-  /// - volName - the volume name
-  // TODO To be implemented
-  //virtual TVirtualMCSensitiveDetector *GetSensitiveDetector(const TString &volName) const override;
+  // Get a sensitive detector of a volume
+  // - volName - the volume name
+  virtual TVirtualMCSensitiveDetector* GetSensitiveDetector(const TString& volName) const override
+  {
+    Warning("GetSensitiveDetector", "Not supported");
+    return nullptr;
+  }
 
-  /// The scoring option:
-  /// if true, scoring is performed only via user defined sensitive detectors and
-  /// MCApplication::Stepping is not called
-  // TODO To be implemented
-  //virtual void SetExclusiveSDScoring(Bool_t exclusiveSDScoring) override;
+  // The scoring option:
+  // if true, scoring is performed only via user defined sensitive detectors and
+  // MCApplication::Stepping is not called
+  virtual void SetExclusiveSDScoring(Bool_t exclusiveSDScoring) override
+  {
+    Warning("SetExclusiveSDScoring", "Not supported");
+  }
 
   //
   // ------------------------------------------------
@@ -1049,6 +1056,13 @@ class MCReplayEngine : public TVirtualMC
   {
     // Here we assume that the transport of the next event is desired
     ProcessEvent(mCurrentEvent);
+  }
+
+  /// That triggers stopping the transport of the current track without dispatching
+  /// to common routines like TVirtualMCApplication::PostTrack() etc.
+  virtual void InterruptTrack()
+  {
+    Info("InterruptTrack", "Not implemented");
   }
 
   /// Process one  run and return true if run has finished successfully,
