@@ -336,6 +336,7 @@ class StepLogger
 // pointers to dissallow construction at each library load
 StepLogger* logger;
 FieldLogger* fieldlogger;
+bool doFieldLogging = std::getenv("MCSTEPLOG_NO_FIELD") ? false : true;
 } // namespace o2
 
 // a helper template kernel describing generically the redispatching prodecure
@@ -407,8 +408,10 @@ extern "C" void performLogging(TVirtualMCApplication* app)
 
 extern "C" void logField(double const* p, double const* b)
 {
-  static TVirtualMC* mc = TVirtualMC::GetMC();
-  o2::fieldlogger->addStep(mc, p, b);
+  if (o2::doFieldLogging) {
+    static TVirtualMC* mc = TVirtualMC::GetMC();
+    o2::fieldlogger->addStep(mc, p, b);
+  }
 }
 
 extern "C" void initLogger()
