@@ -1119,6 +1119,11 @@ class MCReplayEngine : public TVirtualMC
     mUpdateProcessesCutsBlocked = value;
   }
 
+  void allowStopTrack(bool value = true)
+  {
+    mAllowStopTrack = value;
+  }
+
   void cutsFromConfig(std::string const& path);
 
  private:
@@ -1150,21 +1155,26 @@ class MCReplayEngine : public TVirtualMC
   // treat a user secondary that was, for instance, pushed to the stack during hit creation
   void transportUserHitSecondary();
 
+  bool startTrack(const o2::StepInfo& step);
+  void finishTrack(const o2::StepInfo& nextStep);
+  void finishTrack();
+  bool stepping();
+
   // helper function to derive a hash from step properties to seed gRandom
   // On the shoulders of o2::data::Stack
   ULong_t makeHash(const o2::StepInfo& step) const;
 
   // add process or cut values based on name and value
   template <typename P, typename T, std::size_t N>
-  bool insertProcessOrCut(std::vector<std::vector<P>*>& insertInto, const std::array<T, N>& allParamsNames, const std::vector<P>& defaultParams, Int_t mediumId, const char* paramName, P parval)
+  bool insertProcessOrCut(std::vector<std::vector<P>*>& insertInto, const std::array<T, N>& allParamsNames, const std::vector<P>& defaultParams, Int_t mediumId, const char* paramName, P parval, bool forceSet=false)
   {
     auto paramIndex = physics::paramToIndex(allParamsNames, paramName);
-    return insertProcessOrCut(insertInto, allParamsNames, defaultParams, mediumId, paramIndex, parval);
+    return insertProcessOrCut(insertInto, allParamsNames, defaultParams, mediumId, paramIndex, parval, forceSet);
   }
 
   // add process or cut values based on name and value
   template <typename P, typename T, std::size_t N>
-  bool insertProcessOrCut(std::vector<std::vector<P>*>& insertInto, const std::array<T, N>& allParamsNames, const std::vector<P>& defaultParams, Int_t mediumId, int paramIndex, P parval)
+  bool insertProcessOrCut(std::vector<std::vector<P>*>& insertInto, const std::array<T, N>& allParamsNames, const std::vector<P>& defaultParams, Int_t mediumId, int paramIndex, P parval, bool forceSet=false)
   {
     if (paramIndex < 0) {
       return false;
@@ -1178,24 +1188,32 @@ class MCReplayEngine : public TVirtualMC
     if (!currMap) {
       currMap = new std::vector<P>(defaultParams.begin(), defaultParams.end());
     }
-    (*currMap)[paramIndex] = parval;
+    auto& value = (*currMap)[paramIndex];
+    if (value >= 0 && !forceSet) {
+      return false;
+    }
+    value = parval;
     return true;
   }
 
   template <typename P, typename T, std::size_t N>
-  bool insertProcessOrCut(std::vector<P>& insertInto, const std::array<T, N>& allParamsNames, const char* paramName, P parval)
+  bool insertProcessOrCut(std::vector<P>& insertInto, const std::array<T, N>& allParamsNames, const char* paramName, P parval, bool forceSet=false)
   {
     auto paramIndex = physics::paramToIndex(allParamsNames, paramName);
-    return insertProcessOrCut(insertInto, allParamsNames, paramIndex, parval);
+    return insertProcessOrCut(insertInto, allParamsNames, paramIndex, parval, forceSet);
   }
 
   template <typename P, typename T, std::size_t N>
-  bool insertProcessOrCut(std::vector<P>& insertInto, const std::array<T, N>& allParamsNames, int paramIndex, P parval)
+  bool insertProcessOrCut(std::vector<P>& insertInto, const std::array<T, N>& allParamsNames, int paramIndex, P parval, bool forceSet=false)
   {
     if (paramIndex < 0) {
       return false;
     }
-    insertInto[paramIndex] = parval;
+    auto& value = insertInto[paramIndex];
+    if (value >= 0 && !forceSet) {
+      return false;
+    }
+    value = parval;
     return true;
   }
 
@@ -1210,6 +1228,9 @@ class MCReplayEngine : public TVirtualMC
   bool mIsRunStopped = false;
   bool mIsEventStopped = false;
   bool mIsTrackStopped = false;
+
+  // If we allow for stoopping a track
+  bool mAllowStopTrack = true;
 
   // File and tree name to process
   std::string mStepLoggerFilename;
@@ -1237,7 +1258,7 @@ class MCReplayEngine : public TVirtualMC
   o2::StepInfo* mCurrentStep = nullptr;
 
   // keep track of tracks to be skipped
-  std::vector<bool> mSkipTrack;
+  std::vector<float> mSkipTrack;
   // keep track of track ID assigned by user stack
   std::vector<int> mUserTrackId;
 
@@ -1247,7 +1268,12 @@ class MCReplayEngine : public TVirtualMC
   // increment the current track length
   float mCurrentTrackLength = 0.;
 
-  // block in case framework should be prevented from setting cuts or processes
+  // keep track of primary tracks
+  int mCurrentPrimaryId = -1;
+  // keep track of current track
+  int mCurrentTrackId = -1;
+
+  // block in case the using framework should be prevented from setting cuts or processes
   bool mUpdateProcessesCutsBlocked = false;
   // Preliminary process structure
   std::vector<std::vector<Int_t>*> mProcesses;

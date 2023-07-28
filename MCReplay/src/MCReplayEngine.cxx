@@ -743,7 +743,7 @@ int MCReplayEngine::getMediumId(int volId) const
 Bool_t MCReplayEngine::SetProcess(const char* flagName, Int_t flagValue)
 {
   if (mUpdateProcessesCutsBlocked) {
-    ::Info("MCReplayEngine::Gstpar", "Parameter setting closed, nothing is changed.");
+    ::Info("MCReplayEngine::SetProcess", "Parameter setting closed, nothing is changed.");
     return false;
   }
   return insertProcessOrCut(mProcessesGlobal, physics::namesCuts, flagName, flagValue);
@@ -752,10 +752,18 @@ Bool_t MCReplayEngine::SetProcess(const char* flagName, Int_t flagValue)
 Bool_t MCReplayEngine::SetCut(const char* cutName, Double_t cutValue)
 {
   if (mUpdateProcessesCutsBlocked) {
-    ::Info("MCReplayEngine::Gstpar", "Parameter setting closed, nothing is changed.");
+    ::Info("MCReplayEngine::SetCut", "Parameter setting closed, nothing is changed.");
     return false;
   }
-  return insertProcessOrCut(mCutsGlobal, physics::namesCuts, cutName, cutValue);
+  auto setGlobal = insertProcessOrCut(mCutsGlobal, physics::namesCuts, cutName, cutValue);
+  return setGlobal;
+  for (auto& mediumCuts : mCuts) {
+    if (!mediumCuts) {
+      continue;
+    }
+    insertProcessOrCut(*mediumCuts, physics::namesCuts, cutName, cutValue);
+  }
+  return setGlobal;
 }
 
 Int_t MCReplayEngine::CurrentVolID(Int_t& copyNo) const
@@ -893,13 +901,14 @@ void MCReplayEngine::Gstpar(Int_t itmed, const char* param, Double_t parval)
     ::Info("MCReplayEngine::Gstpar", "Parameter setting closed, nothing is changed.");
     return;
   }
-  if (insertProcessOrCut(mProcesses, physics::namesProcesses, mProcessesGlobal, itmed, param, (int)parval)) {
+  if (insertProcessOrCut(mProcesses, physics::namesProcesses, mProcessesGlobal, itmed, param, (int)parval, true)) {
     return;
   }
-  if (!insertProcessOrCut(mCuts, physics::namesCuts, mCutsGlobal, itmed, param, parval)) {
+  if (!insertProcessOrCut(mCuts, physics::namesCuts, mCutsGlobal, itmed, param, parval, true)) {
     ::Warning("MCReplayEngine::Gstpar", "Could not set parameter %s, unknown and therefore skipped", param);
   }
 }
+
 
 void MCReplayEngine::loadCurrentCutsAndProcesses(int volId)
 {
@@ -985,15 +994,74 @@ bool MCReplayEngine::initRun()
 
 void MCReplayEngine::transportUserHitSecondary()
 {
-  // For now we just start and finish this secondary. This is only done to pretend the transport for the user stack
+  // secondaries that are somehow produced by the framework (e.g. during hit creation) cannot be taken into accoun.
+  // Since we rely on pre-recorded steps, we can only pretend to account for them.
   fApplication->PreTrack();
   fApplication->PostTrack();
 }
 
+bool MCReplayEngine::startTrack(const o2::StepInfo& step)
+{
+  mStack->SetCurrentTrack(mUserTrackId[step.trackID]);
+  mCurrentTrackLength = 0.;
+
+  if (isPrimary(step.trackID)) {
+    mCurrentPrimaryId = step.trackID;
+    fApplication->BeginPrimary();
+  }
+  mCurrentTrackId = step.trackID;
+  fApplication->PreTrack();
+  gRandom->SetSeed(makeHash(step));
+
+  if (!keepStep(step)) {
+    mSkipTrack[step.trackID] = step.t;
+    return false;
+  }
+  return true;
+}
+
+void MCReplayEngine::finishTrack(const o2::StepInfo& nextStep)
+{
+  if (mCurrentTrackId > -1) {
+    fApplication->PostTrack();
+  }
+  if (isPrimary(nextStep.trackID) && mCurrentPrimaryId >= 0) {
+    fApplication->FinishPrimary();
+  }
+}
+
+void MCReplayEngine::finishTrack()
+{
+  if (mCurrentTrackId >= 0) {
+    fApplication->PostTrack();
+    mCurrentTrackId = -1;
+  }
+  if (mCurrentPrimaryId > -1) {
+    fApplication->FinishPrimary();
+    mCurrentPrimaryId = -1;
+  }
+}
+
+bool MCReplayEngine::stepping()
+{
+  fApplication->Stepping();
+  // now let's see if the track was stopped for some reason
+  if (mIsTrackStopped) {
+    // reset the flag for the next track to come
+    mIsTrackStopped = false;
+    if (mAllowStopTrack) {
+      mSkipTrack[mCurrentStep->trackID] = mCurrentStep->t;
+      return false;
+    }
+  }
+  return true;
+}
+
 void MCReplayEngine::ProcessEvent(Int_t eventId)
 {
-  // prepare
-  std::vector<o2::StepInfo>* steps = nullptr;
+  // at this point, we do not allow any process or cut settings anymore from the outside
+  blockSetProcessesCuts();
+  std::vector<o2::StepInfo>* steps{};
   mCurrentLookups = nullptr;
   mStepBranch->SetAddress(&steps);
   mLookupBranch->SetAddress(&mCurrentLookups);
@@ -1001,20 +1069,22 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
   mLookupBranch->GetEvent(eventId);
 
   // whether or not to skip certain tracks
-  mSkipTrack.resize(mCurrentLookups->tracktopdg.size(), false);
+  mSkipTrack.resize(mCurrentLookups->tracktopdg.size(), -1.);
   // we need to make sure we follow the indexing of the user stack. During the original simulation, there might have been more tracks pushed than transported. In the replay case, we only have the tracks that have been originally transported. Hence, the indexing this time might be different.
   mUserTrackId.resize(mCurrentLookups->tracktopdg.size(), -1);
-  // some caching to be able to run pre- and post-hooks at the right time
-  int currentTrackId = -1;
+  std::cout << "Number of PDGs: " << mUserTrackId.size() << std::endl;
+  // cache track and primary IDs during stepping
+  mCurrentTrackId = -1;
+  mCurrentPrimaryId = -1;
 
+  // preparation done, start replay
   fApplication->BeginEvent();
   fApplication->GeneratePrimaries();
 
   // Remember how many primaries are expected to be transported
   auto expectedNPrimaries = mStack->GetNprimary();
 
-  /* SOME REMARKS
-
+  /*
   1. Steps are expected to be grouped together track-by-track (that comes from the MCStepLogger and will only work properly for the serial simulation run)
   2. Therefore, if a step with a different track ID is reached, it is assumed that the previous track is finished
   3. Since in the original reference run, some secondaries might have been pushed to the user stack but not transported, we comply with the track ID assignement of the user stack in a replay run
@@ -1029,26 +1099,26 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
   TStopwatch stopwatch{};
 
   for (auto& step : *steps) {
-
-    // TODO This should not happen. (see comment in header file for these flags)
     if (mIsEventStopped) {
       mIsEventStopped = false;
       ::Warning("MCReplayEngine::ProcessEvent", "Event %d was stopped. That should usually not happen", mCurrentEvent);
       break;
     }
 
-    mSkipTrack[step.trackID] = !step.newtrack && mSkipTrack[step.trackID];
+    mSkipTrack[step.trackID] = !step.newtrack && mSkipTrack[step.trackID] >= 0. ? mSkipTrack[step.trackID] : -1.;
 
     // skip if flagged and increment
-    if (mSkipTrack[step.trackID]) {
+    if (mSkipTrack[step.trackID] >= 0.) {
       continue;
     }
-    if (mCurrentLookups->tracktoparent[step.trackID] > -1 && mSkipTrack[mCurrentLookups->tracktoparent[step.trackID]]) {
-      // skip recursively in case parent was skipped, only affects secondaries of course
-      mSkipTrack[step.trackID] = true;
-      continue;
+    if (mCurrentLookups->tracktoparent[step.trackID] > -1) {
+      auto parentTime = mSkipTrack[mCurrentLookups->tracktoparent[step.trackID]];
+      if (parentTime >= 0 && parentTime <= step.t) {
+        // skip recursively in case parent was skipped, only affects secondaries of course
+        mSkipTrack[step.trackID] = step.t;
+        continue;
+      }
     }
-
     if (step.entered || step.newtrack) {
       // find the correct set of cuts and processes for this volume
       loadCurrentCutsAndProcesses(step.volId);
@@ -1056,32 +1126,17 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
     }
 
     // NOW PERFORM EVERYTHIN NECESSARY TO START / FINISH A TRACK
+    if (mCurrentTrackId != step.trackID) {
 
-    if (currentTrackId == step.trackID && mIsTrackStopped) {
-      // track can be told to be stopped in replay run due to different states of RNGs of reference and replay run, will be ignored
-      nStopTrack++;
-      mIsTrackStopped = false;
-    }
+      // Finish potential last track
+      finishTrack(step);
 
-    if (currentTrackId != step.trackID) {
-      // Found a new track
-
-      auto prim = isPrimary(step.trackID);
-
-      if (currentTrackId > -1) {
-        // only invoke if there has been at least 1 track before
-        fApplication->PostTrack();
-        if (prim) {
-          // finish previous primary only in case all its secondary tracks have been transported and a new primary is about to be transported
-          fApplication->FinishPrimary();
-        }
-      }
-
-      if (!prim) {
+      if (!isPrimary(step.trackID)) {
         // decide to skip this secondary immediately, primaries must be popped first since otherwise we might run into inconsitencies with the user stack
         // therefore, it looks as if this secondary never appeared
         if (!keepStep(step)) {
-          mSkipTrack[step.trackID] = true;
+          mSkipTrack[step.trackID] = step.t;
+          mCurrentTrackId = -1;
           continue;
         }
 
@@ -1105,35 +1160,22 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
         mUserTrackId[step.trackID] = popTrackId;
       }
 
-      currentTrackId = step.trackID;
-      mStack->SetCurrentTrack(mUserTrackId[step.trackID]);
-      mCurrentTrackLength = 0.;
-
-      if (prim) {
-        fApplication->BeginPrimary();
-      }
-      fApplication->PreTrack();
-
-      if (!keepStep(step)) {
-        // This is for primaries since secondaries would have been skipped already above
-        mSkipTrack[step.trackID] = true;
+      if (!startTrack(step)) {
         continue;
       }
-
-      // We fix the RNG so in case the hits are somehow based on that, the hits among different Replay runs are exactly reproduced
-      gRandom->SetSeed(makeHash(step));
     }
 
     mCurrentTrackLength += step.step;
     mCurrentStep = &step;
 
+    if (!stepping()) {
+      continue;
+    }
     nStepsKept++;
-    fApplication->Stepping();
   }
 
   // Finish last track and the entire event
-  fApplication->PostTrack();
-  fApplication->FinishPrimary();
+  finishTrack();
 
   fApplication->FinishEvent();
 
@@ -1142,7 +1184,9 @@ void MCReplayEngine::ProcessEvent(Int_t eventId)
   auto nStepsSkipped = steps->size() - nStepsKept;
   std::cout << "Original number, skipped, kept, skipped fraction and kept fraction of steps: " << steps->size() << " " << nStepsSkipped << " " << nStepsKept << " " << static_cast<float>(nStepsSkipped) / steps->size() << " " << static_cast<float>(nStepsKept) / steps->size() << "\n";
   std::cout << "In addition, " << nUserTracks << " tracks produced during hit creation were ignored\n";
-  std::cout << "TVirtualMC::StopTrack was ignored " << nStopTrack << " times\n";
+  if (!mAllowStopTrack) {
+    std::cout << "TVirtualMC::StopTrack was ignored " << nStopTrack << " times\n";
+  }
   std::cout << "Real time: " << stopwatch.RealTime() << ", CPU time: " << stopwatch.CpuTime() << "\n";
 
   delete steps;
