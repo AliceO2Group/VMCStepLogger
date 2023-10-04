@@ -663,7 +663,7 @@ class MCReplayEngine : public TVirtualMC
   /// Set the maximum step allowed till the particle is in the current medium
   virtual void SetMaxStep(Double_t) override
   {
-    //Warning("SetMaxStep", "Not yet implemented");
+    // Warning("SetMaxStep", "Not yet implemented");
   }
 
   /// Set the maximum number of steps till the particle is in the current medium
@@ -1015,7 +1015,7 @@ class MCReplayEngine : public TVirtualMC
   virtual Int_t StepProcesses(TArrayI& proc) const override
   {
     // TODO Not possible atm with MCStepLogger, donet have that info
-    //Warning("StepProcesses", "Not yet implemented");
+    // Warning("StepProcesses", "Not yet implemented");
     return -1;
   }
 
@@ -1166,7 +1166,7 @@ class MCReplayEngine : public TVirtualMC
 
   // add process or cut values based on name and value
   template <typename P, typename T, std::size_t N>
-  bool insertProcessOrCut(std::vector<std::vector<P>*>& insertInto, const std::array<T, N>& allParamsNames, const std::vector<P>& defaultParams, Int_t mediumId, const char* paramName, P parval, bool forceSet=false)
+  bool insertProcessOrCut(std::vector<std::vector<P>*>& insertInto, const std::array<T, N>& allParamsNames, const std::vector<P>& defaultParams, Int_t mediumId, const char* paramName, P parval, bool forceSet = false)
   {
     auto paramIndex = physics::paramToIndex(allParamsNames, paramName);
     return insertProcessOrCut(insertInto, allParamsNames, defaultParams, mediumId, paramIndex, parval, forceSet);
@@ -1174,7 +1174,7 @@ class MCReplayEngine : public TVirtualMC
 
   // add process or cut values based on name and value
   template <typename P, typename T, std::size_t N>
-  bool insertProcessOrCut(std::vector<std::vector<P>*>& insertInto, const std::array<T, N>& allParamsNames, const std::vector<P>& defaultParams, Int_t mediumId, int paramIndex, P parval, bool forceSet=false)
+  bool insertProcessOrCut(std::vector<std::vector<P>*>& insertInto, const std::array<T, N>& allParamsNames, const std::vector<P>& defaultParams, Int_t mediumId, int paramIndex, P parval, bool forceSet = false)
   {
     if (paramIndex < 0) {
       return false;
@@ -1197,14 +1197,14 @@ class MCReplayEngine : public TVirtualMC
   }
 
   template <typename P, typename T, std::size_t N>
-  bool insertProcessOrCut(std::vector<P>& insertInto, const std::array<T, N>& allParamsNames, const char* paramName, P parval, bool forceSet=false)
+  bool insertProcessOrCut(std::vector<P>& insertInto, const std::array<T, N>& allParamsNames, const char* paramName, P parval, bool forceSet = false)
   {
     auto paramIndex = physics::paramToIndex(allParamsNames, paramName);
     return insertProcessOrCut(insertInto, allParamsNames, paramIndex, parval, forceSet);
   }
 
   template <typename P, typename T, std::size_t N>
-  bool insertProcessOrCut(std::vector<P>& insertInto, const std::array<T, N>& allParamsNames, int paramIndex, P parval, bool forceSet=false)
+  bool insertProcessOrCut(std::vector<P>& insertInto, const std::array<T, N>& allParamsNames, int paramIndex, P parval, bool forceSet = false)
   {
     if (paramIndex < 0) {
       return false;
