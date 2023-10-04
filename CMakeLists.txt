@@ -32,6 +32,26 @@ SET(INSTALL_INC_DIR ${CMAKE_INSTALL_PREFIX}/include)
 SET(INSTALL_LIB_DIR ${CMAKE_INSTALL_PREFIX}/lib)
 SET(INSTALL_CMAKE_DIR ${CMAKE_INSTALL_PREFIX}/cmake)
 
+# setup for rpath and mac on the shoulders of O2 CMake
+include(GNUInstallDirs)
+if (APPLE)
+  set(basePoint @loader_path)
+else()
+  set(basePoint $ORIGIN)
+endif()
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+if (APPLE)
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+endif()
+
+# add to the install RPATH the (automatically determined) parts of the RPATH
+# that point to directories outside the build tree
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# specify libraries directory relative to binaries one.
+file(RELATIVE_PATH relDir ${INSTALL_BIN_DIR} ${INSTALL_LIB_DIR})
+set(CMAKE_INSTALL_RPATH ${basePoint} ${basePoint}/${relDir})
+
 #################################
 # Whether or not to build tests #
 #################################
