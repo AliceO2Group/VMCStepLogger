@@ -909,7 +909,6 @@ void MCReplayEngine::Gstpar(Int_t itmed, const char* param, Double_t parval)
   }
 }
 
-
 void MCReplayEngine::loadCurrentCutsAndProcesses(int volId)
 {
   mCurrentProcesses = &mProcessesGlobal;

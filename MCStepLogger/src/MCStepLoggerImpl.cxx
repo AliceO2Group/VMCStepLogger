@@ -121,7 +121,7 @@ void flushToTTree(const char* branchname, T* address)
   branch->Fill();
   tree->SetEntries(branch->GetEntries());
   // To avoid large number of cycles since whenever the file is opened and things are written, this is done as a new cycle
-  //f->Write();
+  // f->Write();
   tree->Write("", TObject::kOverwrite);
   f->Close();
   delete f;
