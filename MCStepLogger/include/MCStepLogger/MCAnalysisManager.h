@@ -31,6 +31,7 @@
 
 #include "MCStepLogger/StepInfo.h"
 #include "MCStepLogger/MetaInfo.h"
+#include "MCStepLogger/MCAnalysisFileWrapper.h"
 
 namespace o2
 {
@@ -38,7 +39,6 @@ namespace mcstepanalysis
 {
 
 class MCAnalysis;
-class MCAnalysisFileWrapper;
 
 class MCAnalysisManager
 {
