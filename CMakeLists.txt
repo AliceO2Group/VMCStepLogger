@@ -104,18 +104,26 @@ find_package(Boost COMPONENTS program_options chrono unit_test_framework REQUIRE
 ###############################
 # Determine CXX STD from ROOT #
 ###############################
-SET(CMAKE_CXX_STANDARD 11)
+
+#
+# SW: The following code was there but was
+# problematic. In principle, we expect the C++ version
+# to be set from the outside via (-DCMAKE_CXX_STANDARD).
+# Please send email if this does not work for you.
+#
+
+#SET(CMAKE_CXX_STANDARD 11)
 # Find ROOT CXX standard
-string(FIND ${ROOT_CXX_FLAGS} "-std=" POSITION)
-if (${POSITION} GREATER -1)
-    string(SUBSTRING ${ROOT_CXX_FLAGS} ${POSITION} 11 ROOT_CXX_STD)
-    if(${ROOT_CXX_STD} STREQUAL "-std=c++1z " OR ${ROOT_CXX_STD} STREQUAL "-std=c++17 ")
-        SET(CMAKE_CXX_STANDARD 17)
-    elseif(${ROOT_CXX_STD} STREQUAL "-std=c++1y " OR ${ROOT_CXX_STD} STREQUAL "-std=c++14 ")
-        SET(CMAKE_CXX_STANDARD 14)
-    endif()
-endif()
-message(STATUS "Build with CXX STD ${CMAKE_CXX_STANDARD}")
+#string(FIND ${ROOT_CXX_FLAGS} "-std=" POSITION)
+#if (${POSITION} GREATER -1)
+#    string(SUBSTRING ${ROOT_CXX_FLAGS} ${POSITION} 11 ROOT_CXX_STD)
+#    if(${ROOT_CXX_STD} STREQUAL "-std=c++1z " OR ${ROOT_CXX_STD} STREQUAL "-std=c++17 ")
+#        SET(CMAKE_CXX_STANDARD 17)
+#    elseif(${ROOT_CXX_STD} STREQUAL "-std=c++1y " OR ${ROOT_CXX_STD} STREQUAL "-std=c++14 ")
+#        SET(CMAKE_CXX_STANDARD 14)
+#    endif()
+#endif()
+#message(STATUS "Build with CXX STD ${CMAKE_CXX_STANDARD}")
 
 #######################
 # Do the installation #
