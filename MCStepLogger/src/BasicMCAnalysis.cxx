@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <cmath>
 
 #include "MCStepLogger/BasicMCAnalysis.h"
 #include "MCStepLogger/MCAnalysisUtilities.h"
