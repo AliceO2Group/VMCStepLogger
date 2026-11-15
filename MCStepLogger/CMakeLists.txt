@@ -110,6 +110,6 @@ install(TARGETS ${EXECUTABLE_NAME} DESTINATION ${INSTALL_BIN_DIR} EXPORT ${CMAKE
 # Install macros
 install(FILES ${MACROS} DESTINATION ${INSTALL_MACRO_DIR})
 
-if(MCStepLogger_BUILD_TESTS AND HAS_TEST_DATA)
+if(MCStepLogger_BUILD_TESTS)
   add_subdirectory(test)
 endif()

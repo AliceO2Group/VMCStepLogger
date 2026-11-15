@@ -53,56 +53,65 @@ DECLARE_INTERCEPT_FIELD_SYMBOLS(AliMagF);
 
 extern "C" void performLogging(TVirtualMCApplication*);
 extern "C" void logField(const double*, const double*);
-extern "C" void dispatchOriginal(TVirtualMCApplication*, char const* libname, char const*);
-extern "C" void dispatchOriginalField(TVirtualMagField*, char const* libname, char const*, const double x[3],
-                                      double* B);
+extern "C" void* findOriginal(char const* libnames, char const* symbol);
+extern "C" void dispatchOriginal(TVirtualMCApplication*, void* original);
+extern "C" void dispatchOriginalField(TVirtualMagField*, void* original, const double x[3], double* B);
 extern "C" void flushLog();
 extern "C" void initLogger();
 
-#define INTERCEPT_STEPPING(APP, LIB, SYMBOL)                       \
+// LIBS names the libraries that may define SYMBOL, separated by ':'. They are only used when the
+// defining library was loaded with RTLD_LOCAL; otherwise the original is found by symbol alone.
+#define INTERCEPT_STEPPING(APP, LIBS, SYMBOL)                      \
   void APP::Stepping()                                             \
   {                                                                \
+    static void* const original = findOriginal(LIBS, SYMBOL);      \
     auto baseptr = reinterpret_cast<TVirtualMCApplication*>(this); \
     performLogging(baseptr);                                       \
-    dispatchOriginal(baseptr, LIB, SYMBOL);                        \
+    dispatchOriginal(baseptr, original);                           \
   }
 
-#define INTERCEPT_FINISHEVENT(APP, LIB, SYMBOL)                    \
+#define INTERCEPT_FINISHEVENT(APP, LIBS, SYMBOL)                   \
   void APP::FinishEvent()                                          \
   {                                                                \
+    static void* const original = findOriginal(LIBS, SYMBOL);      \
     auto baseptr = reinterpret_cast<TVirtualMCApplication*>(this); \
     flushLog();                                                    \
-    dispatchOriginal(baseptr, LIB, SYMBOL);                        \
+    dispatchOriginal(baseptr, original);                           \
   }
 
 // we use the ConstructGeometry hook to setup the logger
-#define INTERCEPT_GEOMETRYINIT(APP, LIB, SYMBOL)                   \
+#define INTERCEPT_GEOMETRYINIT(APP, LIBS, SYMBOL)                  \
   void APP::ConstructGeometry()                                    \
   {                                                                \
+    static void* const original = findOriginal(LIBS, SYMBOL);      \
     auto baseptr = reinterpret_cast<TVirtualMCApplication*>(this); \
-    dispatchOriginal(baseptr, LIB, SYMBOL);                        \
+    dispatchOriginal(baseptr, original);                           \
     initLogger();                                                  \
   }
 
+// FairMCApplication comes from FairRoot (libBase) or, since 2026, from O2 (libO2FairRootBase)
+#define FAIRLIBS "libO2FairRootBase:libBase"
+
 // the runtime will now dispatch to these functions due to LD_PRELOAD
-INTERCEPT_STEPPING(FairMCApplication, "libBase", "_ZN17FairMCApplication8SteppingEv")
+INTERCEPT_STEPPING(FairMCApplication, FAIRLIBS, "_ZN17FairMCApplication8SteppingEv")
 INTERCEPT_STEPPING(AliMC, "libSTEER", "_ZN5AliMC8SteppingEv")
 INTERCEPT_STEPPING(mcreplay::MCReplayGenericApplication, "libMCReplayCore", "_ZN8mcreplay26MCReplayGenericApplication8SteppingEv")
 
-INTERCEPT_FINISHEVENT(FairMCApplication, "libBase", "_ZN17FairMCApplication11FinishEventEv")
+INTERCEPT_FINISHEVENT(FairMCApplication, FAIRLIBS, "_ZN17FairMCApplication11FinishEventEv")
 INTERCEPT_FINISHEVENT(AliMC, "libSTEER", "_ZN5AliMC11FinishEventEv")
 INTERCEPT_FINISHEVENT(mcreplay::MCReplayGenericApplication, "libMCReplayCore", "_ZN8mcreplay26MCReplayGenericApplication11FinishEventEv")
 
-INTERCEPT_GEOMETRYINIT(FairMCApplication, "libBase", "_ZN17FairMCApplication17ConstructGeometryEv")
+INTERCEPT_GEOMETRYINIT(FairMCApplication, FAIRLIBS, "_ZN17FairMCApplication17ConstructGeometryEv")
 INTERCEPT_GEOMETRYINIT(AliMC, "libSTEER", "_ZN5AliMC17ConstructGeometryEv")
 INTERCEPT_GEOMETRYINIT(mcreplay::MCReplayGenericApplication, "libMCReplayCore", "_ZN8mcreplay26MCReplayGenericApplication17ConstructGeometryEv")
 
-#define INTERCEPT_FIELD(FIELD, LIB, SYMBOL)                     \
-  void FIELD::Field(const double* point, double* bField)        \
-  {                                                             \
-    auto baseptr = reinterpret_cast<TVirtualMagField*>(this);   \
-    dispatchOriginalField(baseptr, LIB, SYMBOL, point, bField); \
-    logField(point, bField);                                    \
+#define INTERCEPT_FIELD(FIELD, LIBS, SYMBOL)                  \
+  void FIELD::Field(const double* point, double* bField)      \
+  {                                                           \
+    static void* const original = findOriginal(LIBS, SYMBOL); \
+    auto baseptr = reinterpret_cast<TVirtualMagField*>(this); \
+    dispatchOriginalField(baseptr, original, point, bField);  \
+    logField(point, bField);                                  \
   }
 
 namespace o2
