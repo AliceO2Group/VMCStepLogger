@@ -4,6 +4,9 @@ This package can be used to log and analyse the single steps computed by detecto
 
 **Note** that some of the instructions below especially apply to the usage together with the ALICE O2 software framework.
 **Note** also that the interception only works in case your application derives from or is equal to [FairMCApplication](https://github.com/FairRootGroup/FairRoot/blob/master/base/sim/FairMCApplication.h) or [AliMC](https://github.com/alisw/AliRoot/blob/master/STEER/STEER/AliMC.h).
+It does not matter which library provides `FairMCApplication`: FairRoot's `libBase` and O2's own copy in `libO2FairRootBase` both work.
+An application that overrides `Stepping`, `FinishEvent` or `ConstructGeometry` must call the `FairMCApplication` method for that hook to work. The logger writes its output at `FinishEvent`, which the multi-process `o2-sim` does not forward, so it produces no logger output; use `o2-sim-serial`.
+The logger is not thread-safe, so it cannot be used with multi-threaded Geant4 (`o2-sim --isMT`).
 
 ## MCStepLogger - usage and info
 

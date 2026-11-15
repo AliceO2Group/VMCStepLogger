@@ -339,77 +339,74 @@ FieldLogger* fieldlogger;
 bool doFieldLogging = std::getenv("MCSTEPLOG_NO_FIELD") ? false : true;
 } // namespace o2
 
-// a helper template kernel describing generically the redispatching prodecure
+// The original definition of an intercepted symbol. This is the next definition after this library in
+// the lookup order, wherever it lives. A library loaded with RTLD_LOCAL is not in that order, so as a
+// fallback the symbol is looked up in already loaded libraries named in the ':'-separated libnames.
+extern "C" void* findOriginal(char const* libnames, char const* symbol)
+{
+  if (void* address = dlsym(RTLD_NEXT, symbol)) {
+    return address;
+  }
+  std::stringstream names(libnames);
+  std::string name;
+  while (std::getline(names, name, ':')) {
+    for (auto suffix : {"", ".so", ".dylib"}) {
+      if (void* handle = dlopen((name + suffix).c_str(), RTLD_NOW | RTLD_NOLOAD)) {
+        if (void* address = dlsym(handle, symbol)) {
+          return address;
+        }
+      }
+    }
+  }
+  std::cerr << "[MCLOGGER:] cannot find the original definition of " << symbol << " (looked after the logger and in "
+            << libnames << ")\n";
+  std::abort();
+}
+
+// a helper template kernel describing generically the redispatching procedure
 template <typename Object /* the original object type */, typename MethodType /* member function type */,
           typename... Args /* original arguments to function */>
-void dispatchOriginalKernel(Object* obj, char const* libname, char const* origFunctionName, Args... args)
+void dispatchOriginalKernel(Object* obj, void* original, Args... args)
 {
-  // Object, MethodType, and Args are of course related so we could do some static_assert checks or automatic deduction
-
-  // static map to avoid having to lookup the right symbols in the shared lib at each call
-  // (We could do this outside of course)
-  static std::map<const char*, MethodType> functionNameToSymbolMap;
   MethodType origMethod = nullptr;
-
-  auto iter = functionNameToSymbolMap.find(origFunctionName);
-  if (iter == functionNameToSymbolMap.end()) {
-    auto libHandle = dlopen(libname, RTLD_NOW);
-    // try to make the library loading a bit more portable:
-    if (!libHandle) {
-      // try appending *.so
-      std::stringstream stream;
-      stream << libname << ".so";
-      libHandle = dlopen(stream.str().c_str(), RTLD_NOW);
-    }
-    if (!libHandle) {
-      // try appending *.dylib
-      std::stringstream stream;
-      stream << libname << ".dylib";
-      libHandle = dlopen(stream.str().c_str(), RTLD_NOW);
-    }
-    assert(libHandle);
-    void* symbolAddress = dlsym(libHandle, origFunctionName);
-    assert(symbolAddress);
 // Purposely ignore compiler warning
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsizeof-pointer-memaccess"
-    // hack since C++ does not allow casting to C++ member function pointers
-    // thanks to gist.github.com/mooware/1174572
-    memcpy(&origMethod, &symbolAddress, sizeof(&symbolAddress));
+  // hack since C++ does not allow casting to C++ member function pointers
+  // thanks to gist.github.com/mooware/1174572
+  memcpy(&origMethod, &original, sizeof(&original));
 #pragma GCC diagnostic pop
-    functionNameToSymbolMap[origFunctionName] = origMethod;
-  } else {
-    origMethod = iter->second;
-  }
   // the final C++ member function call redispatch
   (obj->*origMethod)(args...);
 }
 
 // a generic function that can dispatch to the original method of a TVirtualMCApplication
-extern "C" void dispatchOriginal(TVirtualMCApplication* app, char const* libname, char const* origFunctionName)
+extern "C" void dispatchOriginal(TVirtualMCApplication* app, void* original)
 {
   typedef void (TVirtualMCApplication::*StepMethodType)();
-  dispatchOriginalKernel<TVirtualMCApplication, StepMethodType>(app, libname, origFunctionName);
+  dispatchOriginalKernel<TVirtualMCApplication, StepMethodType>(app, original);
 }
 
 // a generic function that can dispatch to the original method of a TVirtualMagField
-extern "C" void dispatchOriginalField(TVirtualMagField* field, char const* libname, char const* origFunctionName,
-                                      const double x[3], double* B)
+extern "C" void dispatchOriginalField(TVirtualMagField* field, void* original, const double x[3], double* B)
 {
   typedef void (TVirtualMagField::*MethodType)(const double[3], double*);
-  dispatchOriginalKernel<TVirtualMagField, MethodType>(field, libname, origFunctionName, x, B);
+  dispatchOriginalKernel<TVirtualMagField, MethodType>(field, original, x, B);
 }
 
+// steps and field calls before the logger is set up, or without a VMC engine, are not logged
 extern "C" void performLogging(TVirtualMCApplication* app)
 {
-  static TVirtualMC* mc = TVirtualMC::GetMC();
-  o2::logger->addStep(mc);
+  TVirtualMC* mc = TVirtualMC::GetMC();
+  if (o2::logger && mc) {
+    o2::logger->addStep(mc);
+  }
 }
 
 extern "C" void logField(double const* p, double const* b)
 {
-  if (o2::doFieldLogging) {
-    static TVirtualMC* mc = TVirtualMC::GetMC();
+  TVirtualMC* mc = TVirtualMC::GetMC();
+  if (o2::doFieldLogging && o2::fieldlogger && mc) {
     o2::fieldlogger->addStep(mc, p, b);
   }
 }
@@ -425,6 +422,9 @@ extern "C" void initLogger()
 
 extern "C" void flushLog()
 {
+  if (!o2::logger) {
+    return;
+  }
   std::cerr << "[MCLOGGER:] START FLUSHING ----\n";
   o2::logger->flush();
   o2::fieldlogger->flush();
